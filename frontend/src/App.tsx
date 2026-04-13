@@ -15,7 +15,7 @@ function App() {
 
           <div className="button-group">
             <a
-              href="https://github.com/YOUR-USERNAME/YOUR-REPO"
+              href="https://github.com/KatherineGallardo/library-project.git"
               target="_blank"
               rel="noreferrer"
               className="primary-btn"
