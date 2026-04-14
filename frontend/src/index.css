@@ -1,7 +1,7 @@
 :root {
-  font-family: Arial, sans-serif;
-  color: #111827;
-  background-color: #ffffff;
+  font-family: 'Georgia', 'Palatino Linotype', 'Book Antiqua', serif;
+  color: #3f2d23;
+  background-color: #f6ede0;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -23,5 +23,5 @@ body,
 
 body {
   margin: 0;
-  background-color: #ffffff;
+  background: radial-gradient(circle at top, #fff6eb 0%, #f0e1d1 35%, #e3d0bf 100%);
 }

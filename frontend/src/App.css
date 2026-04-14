@@ -48,3 +48,224 @@
 .primary-btn:hover {
   background-color: #1d4ed8;
 }
+
+:root {
+  color: #3f2d23;
+  background-color: #f6ede0;
+  font-family: 'Georgia', 'Palatino Linotype', 'Book Antiqua', serif;
+  font-feature-settings: 'kern' 1;
+}
+
+body {
+  background: radial-gradient(circle at top, #fff6eb 0%, #f0e1d1 35%, #e3d0bf 100%);
+}
+
+.app-header {
+  background: rgba(80, 56, 38, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 30px rgba(91, 44, 4, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-header nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem 1.5rem;
+}
+
+.app-header a {
+  color: #f7efd9;
+  text-decoration: none;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  transition: background 0.25s ease, color 0.25s ease;
+  font-size: 0.95rem;
+}
+
+.app-header a.active,
+.app-header a:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.page-container {
+  max-width: 1180px;
+  margin: 2rem auto 4rem;
+  padding: 2rem;
+  background: rgba(255, 250, 242, 0.92);
+  box-shadow: 0 24px 70px rgba(84, 52, 29, 0.14);
+  border: 1px solid rgba(129, 90, 58, 0.16);
+  border-radius: 24px;
+}
+
+.page-container h1,
+.page-container h2,
+.page-container h3 {
+  color: #412d21;
+}
+
+.page-container p,
+.page-container label,
+.page-container input,
+.page-container button {
+  color: #4f3a2e;
+}
+
+.hero-section {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  background-image: radial-gradient(circle at top left, rgba(209, 171, 128, 0.25), transparent 20%), linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(246, 237, 224, 0.9));
+  border-radius: 28px;
+  border: 1px solid rgba(151, 109, 70, 0.2);
+}
+
+.hero-text h1 {
+  font-size: clamp(2.8rem, 5vw, 4rem);
+  margin-bottom: 0.7rem;
+  letter-spacing: 0.03em;
+}
+
+.coming-soon {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #6a4b33;
+  margin-bottom: 1rem;
+}
+
+.description {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: #5b4335;
+  max-width: 35rem;
+  margin: 0 auto 1.75rem;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.primary-btn,
+.secondary-btn,
+.page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.95rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(87, 58, 39, 0.18);
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.primary-btn,
+.page-btn {
+  background: #8e6744;
+  color: #fff7ec;
+}
+
+.secondary-btn {
+  background: #f3e3d2;
+  color: #5b3f2d;
+}
+
+.primary-btn:hover,
+.secondary-btn:hover,
+.page-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(99, 56, 29, 0.12);
+}
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.book-card {
+  padding: 1.5rem;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 250, 242, 0.95), rgba(247, 236, 221, 0.95));
+  border: 1px solid rgba(134, 90, 63, 0.12);
+  box-shadow: 0 18px 42px rgba(101, 64, 42, 0.08);
+}
+
+.book-card h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.4rem;
+}
+
+.book-card p {
+  margin-bottom: 0.6rem;
+  line-height: 1.6;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.badge.available {
+  background: rgba(91, 146, 95, 0.12);
+  color: #435f3d;
+}
+
+.badge.unavailable {
+  background: rgba(141, 75, 59, 0.12);
+  color: #7b3e30;
+}
+
+.auth-form {
+  max-width: 380px;
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.auth-form input {
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(117, 78, 50, 0.18);
+  background: #fff8f0;
+  color: #4d372c;
+}
+
+.auth-form button {
+  border: none;
+  width: 100%;
+}
+
+@media (max-width: 680px) {
+  .app-header nav {
+    justify-content: center;
+  }
+
+  .page-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+}
