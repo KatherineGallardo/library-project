@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 
 export default function Home() {
   return (
@@ -21,20 +21,20 @@ export default function Home() {
       </section>
 
       <section className="home-features">
-        <div className="feature-card">
+        <NavLink to="/books" className="feature-card">
           <h3>Browse</h3>
           <p>Explore available books and view details before reserving.</p>
-        </div>
+        </NavLink>
 
-        <div className="feature-card">
+        <NavLink to="/reservations" className="feature-card">
           <h3>Reserve</h3>
           <p>Check out books and track due dates in one place.</p>
-        </div>
+        </NavLink>
 
-        <div className="feature-card">
+        <NavLink to="/profile" className="feature-card">
           <h3>Manage</h3>
           <p>Update your account and monitor your reading activity.</p>
-        </div>
+        </NavLink>
       </section>
     </main>
   )
