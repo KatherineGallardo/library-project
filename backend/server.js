@@ -1,0 +1,594 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { Sequelize, DataTypes, Op } from 'sequelize';
+
+dotenv.config();
+
+const PORT = process.env.PORT || 5001;
+const DB_SCHEMA = process.env.DB_SCHEMA || 'public';
+const useSsl = process.env.PGSSLMODE === 'require';
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT) || 5432,
+    dialect: 'postgres',
+    dialectOptions: useSsl
+      ? {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        }
+      : undefined,
+    define: {
+      schema: DB_SCHEMA,
+    },
+    logging: false,
+  }
+);
+
+// --------------------
+// MODELS
+// --------------------
+
+const Users = sequelize.define(
+  'users',
+  {
+    user_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    asgardeo_id: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      unique: true,
+    },
+    first_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    last_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    role: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      validate: {
+        isIn: [['patron', 'librarian']],
+      },
+    },
+    phone_number: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    email: {
+      type: DataTypes.TEXT,
+      unique: true,
+      allowNull: true,
+    },
+    date_of_birth: {
+      type: DataTypes.DATEONLY,
+      allowNull: false,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+  },
+  {
+    tableName: 'users',
+    timestamps: false,
+  }
+);
+
+const Books = sequelize.define(
+  'books',
+  {
+    book_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    author_first_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    author_last_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    year_published: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    genre: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+  },
+  {
+    tableName: 'books',
+    timestamps: false,
+  }
+);
+
+const Reservations = sequelize.define(
+  'reservations',
+  {
+    reservation_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    book_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    check_out: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+    due_date: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    check_in: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+  },
+  {
+    tableName: 'reservations',
+    timestamps: false,
+  }
+);
+
+// Relationships
+Users.hasMany(Reservations, { foreignKey: 'user_id' });
+Reservations.belongsTo(Users, { foreignKey: 'user_id' });
+
+Books.hasMany(Reservations, { foreignKey: 'book_id' });
+Reservations.belongsTo(Books, { foreignKey: 'book_id' });
+
+// --------------------
+// HELPERS
+// --------------------
+
+function getReservationStatus(reservation) {
+  const now = new Date();
+
+  if (reservation.check_in) return 'returned';
+  if (new Date(reservation.due_date) < now) return 'overdue';
+  return 'checked_out';
+}
+
+async function getBookAvailability(bookId) {
+  const activeReservation = await Reservations.findOne({
+    where: {
+      book_id: bookId,
+      check_in: null,
+    },
+  });
+
+  return activeReservation ? 'Checked Out' : 'Available';
+}
+
+// --------------------
+// ROUTES
+// --------------------
+
+// Test route
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
+// --------------------
+// BOOK ROUTES
+// --------------------
+
+// GET /api/books
+app.get('/api/books', async (req, res) => {
+  try {
+    const books = await Books.findAll({ order: [['book_id', 'ASC']] });
+
+    const booksWithAvailability = await Promise.all(
+      books.map(async (book) => {
+        const availability = await getBookAvailability(book.book_id);
+
+        return {
+          ...book.toJSON(),
+          author: `${book.author_first_name} ${book.author_last_name}`,
+          availability,
+        };
+      })
+    );
+
+    res.json(booksWithAvailability);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/books/:id
+app.get('/api/books/:id', async (req, res) => {
+  try {
+    const book = await Books.findByPk(req.params.id);
+
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found.' });
+    }
+
+    const availability = await getBookAvailability(book.book_id);
+
+    res.json({
+      ...book.toJSON(),
+      author: `${book.author_first_name} ${book.author_last_name}`,
+      availability,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/books
+app.post('/api/books', async (req, res) => {
+  try {
+    const newBook = await Books.create({
+      ...req.body,
+      updated_at: new Date(),
+    });
+
+    res.status(201).json(newBook);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// PUT /api/books/:id
+app.put('/api/books/:id', async (req, res) => {
+  try {
+    const book = await Books.findByPk(req.params.id);
+
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found.' });
+    }
+
+    await book.update({
+      ...req.body,
+      updated_at: new Date(),
+    });
+
+    res.json(book);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE /api/books/:id
+app.delete('/api/books/:id', async (req, res) => {
+  try {
+    const book = await Books.findByPk(req.params.id);
+
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found.' });
+    }
+
+    await book.destroy();
+    res.json({ message: 'Book deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --------------------
+// USER ROUTES
+// --------------------
+
+// POST /api/users
+app.post('/api/users', async (req, res) => {
+  try {
+    const newUser = await Users.create({
+      ...req.body,
+      updated_at: new Date(),
+    });
+
+    res.status(201).json(newUser);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /api/users
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await Users.findAll({ order: [['user_id', 'ASC']] });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/users/:id
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const user = await Users.findByPk(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const overdueCount = await Reservations.count({
+      where: {
+        user_id: user.user_id,
+        [Op.or]: [
+          {
+            check_in: null,
+            due_date: { [Op.lt]: new Date() },
+          },
+          {
+            check_in: { [Op.ne]: null },
+            check_in: { [Op.gt]: sequelize.col('due_date') },
+          },
+        ],
+      },
+    });
+
+    res.json({
+      ...user.toJSON(),
+      overdue_count: overdueCount,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/users/:id
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const user = await Users.findByPk(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await user.update({
+      ...req.body,
+      updated_at: new Date(),
+    });
+
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE /api/users/:id
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const user = await Users.findByPk(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await user.destroy();
+    res.json({ message: 'User deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --------------------
+// RESERVATION ROUTES
+// --------------------
+
+// GET /api/reservations
+app.get('/api/reservations', async (req, res) => {
+  try {
+    const reservations = await Reservations.findAll({
+      include: [
+        {
+          model: Users,
+          attributes: ['user_id', 'first_name', 'last_name', 'role', 'email'],
+        },
+        {
+          model: Books,
+          attributes: ['book_id', 'title', 'author_first_name', 'author_last_name'],
+        },
+      ],
+      order: [['reservation_id', 'ASC']],
+    });
+
+    const formatted = reservations.map((reservation) => ({
+      ...reservation.toJSON(),
+      status: getReservationStatus(reservation),
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/reservations/:id
+app.get('/api/reservations/:id', async (req, res) => {
+  try {
+    const reservation = await Reservations.findByPk(req.params.id, {
+      include: [
+        {
+          model: Users,
+          attributes: ['user_id', 'first_name', 'last_name', 'role', 'email'],
+        },
+        {
+          model: Books,
+          attributes: ['book_id', 'title', 'author_first_name', 'author_last_name'],
+        },
+      ],
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
+    res.json({
+      ...reservation.toJSON(),
+      status: getReservationStatus(reservation),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/reservations
+app.post('/api/reservations', async (req, res) => {
+  try {
+    const { user_id, book_id } = req.body;
+
+    if (!user_id || !book_id) {
+      return res.status(400).json({ error: 'user_id and book_id are required.' });
+    }
+
+    const existingActiveReservation = await Reservations.findOne({
+      where: {
+        book_id,
+        check_in: null,
+      },
+    });
+
+    if (existingActiveReservation) {
+      return res.status(400).json({ error: 'This book is already checked out.' });
+    }
+
+    const checkOutDate = new Date();
+    const dueDate = new Date(checkOutDate);
+    dueDate.setDate(dueDate.getDate() + 7);
+
+    const newReservation = await Reservations.create({
+      user_id,
+      book_id,
+      check_out: checkOutDate,
+      due_date: dueDate,
+      check_in: null,
+      updated_at: new Date(),
+    });
+
+    res.status(201).json({
+      ...newReservation.toJSON(),
+      status: getReservationStatus(newReservation),
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// PUT /api/reservations/:id
+app.put('/api/reservations/:id', async (req, res) => {
+  try {
+    const reservation = await Reservations.findByPk(req.params.id);
+
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
+    const updatedData = {
+      ...req.body,
+      updated_at: new Date(),
+    };
+
+    await reservation.update(updatedData);
+
+    res.json({
+      ...reservation.toJSON(),
+      status: getReservationStatus(reservation),
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE /api/reservations/:id
+app.delete('/api/reservations/:id', async (req, res) => {
+  try {
+    const reservation = await Reservations.findByPk(req.params.id);
+
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
+    await reservation.destroy();
+    res.json({ message: 'Reservation deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --------------------
+// START SERVER
+// --------------------
+
+const startServer = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('Database connected...');
+
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Error: ', err);
+    process.exit(1);
+  }
+};
+
+startServer();
