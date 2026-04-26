@@ -43,8 +43,8 @@ export default function CompleteProfile() {
         return
       }
 
-      if (formData.email && !emailPattern.test(formData.email)) {
-        setError('Please enter a valid email address.')
+      if (!emailPattern.test(formData.email)) {
+        setError('Please enter the same valid email address you used during sign up.')
         setSaving(false)
         return
       }
@@ -124,15 +124,19 @@ export default function CompleteProfile() {
         </div>
 
         <div className="form-field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">Email Used During Sign Up</label>
           <input
             id="email"
             name="email"
             type="email"
-            placeholder="name@example.com"
+            placeholder="Re-enter the same email used during sign up"
             value={formData.email}
             onChange={handleChange}
+            required
           />
+          <small style={{ color: 'gray' }}>
+            Please enter the exact email address you used when creating your account.
+          </small>
         </div>
 
         <div className="form-field">
@@ -155,7 +159,7 @@ export default function CompleteProfile() {
         </div>
       </form>
 
-        {error && <p className="error-message">{error}</p>}
+      {error && <p className="error-message">{error}</p>}
     </main>
   )
 }

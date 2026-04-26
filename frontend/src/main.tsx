@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')!).render(
     <AsgardeoProvider
       clientId="d3cxDQENREgsNGvzs66sWICc8VIa"
       baseUrl="https://api.asgardeo.io/t/katherinegallardo"
-      scopes="openid profile"
+      scopes="openid profile email"
     >
       <App />
     </AsgardeoProvider>
