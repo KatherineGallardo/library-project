@@ -1,21 +1,20 @@
+import { useEffect } from 'react'
+import { useAsgardeo } from '@asgardeo/react'
+
 export default function Login() {
+  const auth = useAsgardeo()
+
+  useEffect(() => {
+    // if user is not signed in, trigger redirect to Asgardeo
+    if (!auth?.isSignedIn) {
+      auth?.signIn()
+    }
+  }, [auth])
+
   return (
     <main className="page-container">
-      <h1>Sign In</h1>
-      <p>This app currently supports username/password auth through the backend API.</p>
-      <form className="auth-form">
-        <label>
-          Username
-          <input type="text" name="username" />
-        </label>
-        <label>
-          Password
-          <input type="password" name="password" />
-        </label>
-        <button type="submit" className="primary-btn">
-          Log In
-        </button>
-      </form>
+      <h1>Redirecting to Sign In...</h1>
+      <p>If you are not redirected automatically, please wait or refresh.</p>
     </main>
   )
 }

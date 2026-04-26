@@ -1,5 +1,7 @@
 import './App.css'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { useAsgardeo } from '@asgardeo/react'
+
 import Home from './pages/Home'
 import Books from './pages/Books'
 import Login from './pages/Login'
@@ -8,6 +10,8 @@ import Profile from './pages/Profile'
 import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
+  const auth = useAsgardeo()
+
   return (
     <BrowserRouter>
       <header className="app-header">
@@ -16,12 +20,30 @@ function App() {
             Home
           </NavLink>
           <NavLink to="/books">Books</NavLink>
-          <NavLink to="/reservations">Reservations</NavLink>
-          <NavLink to="/profile">My Account</NavLink>
-          <NavLink to="/admin">Librarian</NavLink>
-          <NavLink to="/login">Sign In</NavLink>
+
+          {/* Only show these when signed in */}
+          {auth?.isSignedIn && (
+            <>
+              <NavLink to="/reservations">Reservations</NavLink>
+              <NavLink to="/profile">My Account</NavLink>
+              <NavLink to="/admin">Librarian</NavLink>
+            </>
+          )}
+
+          {/* Auth buttons */}
+          {!auth?.isSignedIn ? (
+            <NavLink to="/login">Sign In</NavLink>
+          ) : (
+            <button
+              className="nav-button"
+              onClick={() => auth?.signOut()}
+            >
+              Sign Out
+            </button>
+          )}
         </nav>
       </header>
+
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/books" element={<Books />} />
