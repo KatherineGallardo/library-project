@@ -95,11 +95,12 @@ export default function AdminDashboard() {
     try {
       setError('')
 
-      const [usersResponse, booksResponse, reservationsResponse] = await Promise.all([
-        api.get('/api/users'),
-        api.get('/api/books'),
-        api.get('/api/reservations'),
-      ])
+      const [usersResponse, booksResponse, reservationsResponse] =
+        await Promise.all([
+          api.get('/api/users'),
+          api.get('/api/books'),
+          api.get('/api/reservations'),
+        ])
 
       setUsers(usersResponse.data)
       setBooks(booksResponse.data)
@@ -116,10 +117,23 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
+  const userHasCurrentReservations = (userId: number) => {
+    return reservations.some(
+      (reservation) => reservation.user_id === userId && !reservation.check_in
+    )
+  }
+
+  const getCurrentReservationCount = (userId: number) => {
+    return reservations.filter(
+      (reservation) => reservation.user_id === userId && !reservation.check_in
+    ).length
+  }
+
   const handleUserChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = event.target
+
     setUserForm((prev) => ({
       ...prev,
       [name]: value,
@@ -130,6 +144,7 @@ export default function AdminDashboard() {
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target
+
     setBookForm((prev) => ({
       ...prev,
       [name]: value,
@@ -156,6 +171,7 @@ export default function AdminDashboard() {
       date_of_birth: user.date_of_birth,
       asgardeo_id: user.asgardeo_id,
     })
+
     setEditingUserId(user.user_id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -169,6 +185,7 @@ export default function AdminDashboard() {
       genre: book.genre,
       description: book.description ?? '',
     })
+
     setEditingBookId(book.book_id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -177,6 +194,8 @@ export default function AdminDashboard() {
     event.preventDefault()
 
     try {
+      setError('')
+
       const payload = { ...userForm }
 
       if (editingUserId) {
@@ -187,9 +206,9 @@ export default function AdminDashboard() {
 
       resetUserForm()
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to save user right now.')
+      setError(err.response?.data?.error || 'Unable to save user right now.')
     }
   }
 
@@ -197,6 +216,8 @@ export default function AdminDashboard() {
     event.preventDefault()
 
     try {
+      setError('')
+
       const payload = {
         ...bookForm,
         year_published: Number(bookForm.year_published),
@@ -210,40 +231,66 @@ export default function AdminDashboard() {
 
       resetBookForm()
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to save book right now.')
+      setError(err.response?.data?.error || 'Unable to save book right now.')
     }
   }
 
-  const handleDeleteUser = async (userId: number) => {
-    const confirmed = window.confirm('Are you sure you want to delete this user?')
-    if (!confirmed) return
+  const handleDeleteUser = async (userId: number, fullName: string) => {
+    setError('')
+
+    if (userHasCurrentReservations(userId)) {
+      setError(
+        `${fullName} cannot be deleted because they currently have an active reservation. Mark the reservation as returned before deleting this user.`
+      )
+      return
+    }
+
+    const typedConfirmation = window.prompt(
+      `Type DELETE to confirm you want to delete ${fullName}. This action cannot be undone.`
+    )
+
+    if (typedConfirmation !== 'DELETE') {
+      return
+    }
 
     try {
       await api.delete(`/api/users/${userId}`)
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to delete user right now.')
+      setError(
+        err.response?.data?.error ||
+          `${fullName} could not be deleted. Please make sure this user does not have any current reservations.`
+      )
     }
   }
 
-  const handleDeleteBook = async (bookId: number) => {
-    const confirmed = window.confirm('Are you sure you want to delete this book?')
-    if (!confirmed) return
+  const handleDeleteBook = async (bookId: number, title: string) => {
+    setError('')
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${title}"? This action cannot be undone.`
+    )
+
+    if (!confirmed) {
+      return
+    }
 
     try {
       await api.delete(`/api/books/${bookId}`)
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to delete book right now.')
+      setError(err.response?.data?.error || 'Unable to delete book right now.')
     }
   }
 
   const handleMarkCheckedOut = async (reservation: Reservation) => {
     try {
+      setError('')
+
       const checkOutDate = new Date()
       const dueDate = new Date(checkOutDate)
       dueDate.setDate(dueDate.getDate() + 7)
@@ -255,35 +302,46 @@ export default function AdminDashboard() {
       })
 
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to mark reservation as checked out.')
+      setError(
+        err.response?.data?.error || 'Unable to mark reservation as checked out.'
+      )
     }
   }
 
   const handleReturn = async (reservation: Reservation) => {
     try {
+      setError('')
+
       await api.put(`/api/reservations/${reservation.reservation_id}`, {
         check_in: new Date(),
       })
 
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to update reservation.')
+      setError(err.response?.data?.error || 'Unable to update reservation.')
     }
   }
 
   const handleDeleteReservation = async (id: number) => {
-    const confirmed = window.confirm('Delete this reservation?')
-    if (!confirmed) return
+    setError('')
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this reservation? This action cannot be undone.'
+    )
+
+    if (!confirmed) {
+      return
+    }
 
     try {
       await api.delete(`/api/reservations/${id}`)
       await fetchData()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to delete reservation.')
+      setError(err.response?.data?.error || 'Unable to delete reservation.')
     }
   }
 
@@ -336,7 +394,11 @@ export default function AdminDashboard() {
 
             <div className="form-field">
               <label>Role</label>
-              <select name="role" value={userForm.role} onChange={handleUserChange}>
+              <select
+                name="role"
+                value={userForm.role}
+                onChange={handleUserChange}
+              >
                 <option value="patron">Patron</option>
                 <option value="librarian">Librarian</option>
               </select>
@@ -480,33 +542,69 @@ export default function AdminDashboard() {
         <h2>Users</h2>
 
         <div className="admin-card-grid">
-          {users.map((user) => (
-            <article key={user.user_id} className="book-card">
-              <h2>
-                {user.first_name} {user.last_name}
-              </h2>
+          {users.map((user) => {
+            const hasCurrentReservations = userHasCurrentReservations(user.user_id)
+            const currentReservationCount = getCurrentReservationCount(user.user_id)
 
-              <div className="book-details">
-                <p>
-                  <span className="label">Role:</span> {user.role}
-                </p>
-                <p>
-                  <span className="label">Email:</span> {user.email}
-                </p>
-                <p>
-                  <span className="label">Phone:</span> {user.phone_number}
-                </p>
-                <p>
-                  <span className="label">Date of Birth:</span> {user.date_of_birth}
-                </p>
-              </div>
+            return (
+              <article key={user.user_id} className="book-card">
+                <h2>
+                  {user.first_name} {user.last_name}
+                </h2>
 
-              <div className="card-actions">
-                <button onClick={() => handleEditUser(user)}>Edit</button>
-                <button onClick={() => handleDeleteUser(user.user_id)}>Delete</button>
-              </div>
-            </article>
-          ))}
+                <div className="book-details">
+                  <p>
+                    <span className="label">Role:</span> {user.role}
+                  </p>
+                  <p>
+                    <span className="label">Email:</span> {user.email}
+                  </p>
+                  <p>
+                    <span className="label">Phone:</span> {user.phone_number}
+                  </p>
+                  <p>
+                    <span className="label">Date of Birth:</span>{' '}
+                    {user.date_of_birth}
+                  </p>
+
+                  {hasCurrentReservations && (
+                    <p>
+                      <span className="label">Delete Status:</span> Cannot delete
+                      because this user has {currentReservationCount} current{' '}
+                      {currentReservationCount === 1
+                        ? 'reservation'
+                        : 'reservations'}
+                      .
+                    </p>
+                  )}
+                </div>
+
+                <div className="card-actions">
+                  <button type="button" onClick={() => handleEditUser(user)}>
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={hasCurrentReservations}
+                    title={
+                      hasCurrentReservations
+                        ? 'This user cannot be deleted until all current reservations are returned.'
+                        : 'Delete user'
+                    }
+                    onClick={() =>
+                      handleDeleteUser(
+                        user.user_id,
+                        `${user.first_name} ${user.last_name}`
+                      )
+                    }
+                  >
+                    {hasCurrentReservations ? 'Delete Disabled' : 'Delete'}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
         </div>
       </section>
 
@@ -520,17 +618,19 @@ export default function AdminDashboard() {
 
               <div className="book-details">
                 <p>
-                  <span className="label">Author:</span> {book.author_first_name}{' '}
-                  {book.author_last_name}
+                  <span className="label">Author:</span>{' '}
+                  {book.author_first_name} {book.author_last_name}
                 </p>
                 <p>
-                  <span className="label">Published:</span> {book.year_published}
+                  <span className="label">Published:</span>{' '}
+                  {book.year_published}
                 </p>
                 <p>
                   <span className="label">Genre:</span> {book.genre}
                 </p>
                 <p className="description">
-                  <span className="label">Description:</span> {book.description}
+                  <span className="label">Description:</span>{' '}
+                  {book.description}
                 </p>
               </div>
 
@@ -545,8 +645,16 @@ export default function AdminDashboard() {
               </span>
 
               <div className="card-actions">
-                <button onClick={() => handleEditBook(book)}>Edit</button>
-                <button onClick={() => handleDeleteBook(book.book_id)}>Delete</button>
+                <button type="button" onClick={() => handleEditBook(book)}>
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteBook(book.book_id, book.title)}
+                >
+                  Delete
+                </button>
               </div>
             </article>
           ))}
@@ -593,8 +701,8 @@ export default function AdminDashboard() {
                   reservation.status === 'overdue'
                     ? 'badge unavailable'
                     : reservation.status === 'returned'
-                    ? 'badge available'
-                    : 'badge'
+                      ? 'badge available'
+                      : 'badge'
                 }
               >
                 {formatStatus(reservation.status)}
@@ -602,16 +710,20 @@ export default function AdminDashboard() {
 
               <div className="card-actions">
                 {reservation.check_in ? (
-                  <button onClick={() => handleMarkCheckedOut(reservation)}>
+                  <button
+                    type="button"
+                    onClick={() => handleMarkCheckedOut(reservation)}
+                  >
                     Mark Checked Out
                   </button>
                 ) : (
-                  <button onClick={() => handleReturn(reservation)}>
+                  <button type="button" onClick={() => handleReturn(reservation)}>
                     Mark Returned
                   </button>
                 )}
 
                 <button
+                  type="button"
                   onClick={() =>
                     handleDeleteReservation(reservation.reservation_id)
                   }
