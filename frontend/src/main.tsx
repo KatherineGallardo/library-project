@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { AsgardeoProvider } from '@asgardeo/react'
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AsgardeoProvider
       clientId="d3cxDQENREgsNGvzs66sWICc8VIa"
