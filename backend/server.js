@@ -575,9 +575,25 @@ app.delete('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => 
 // RESERVATION ROUTES
 // --------------------
 
-app.get('/api/reservations', verifyToken, requireLibrarian, async (req, res) => {
+app.get('/api/reservations', verifyToken, async (req, res) => {
   try {
+    const currentUser = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const whereClause =
+      currentUser.role === 'librarian'
+        ? {}
+        : { user_id: currentUser.user_id };
+
     const reservations = await Reservations.findAll({
+      where: whereClause,
       include: [
         {
           model: Users,
@@ -602,8 +618,18 @@ app.get('/api/reservations', verifyToken, requireLibrarian, async (req, res) => 
   }
 });
 
-app.get('/api/reservations/:id', verifyToken, requireLibrarian, async (req, res) => {
+app.get('/api/reservations/:id', verifyToken, async (req, res) => {
   try {
+    const currentUser = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     const reservation = await Reservations.findByPk(req.params.id, {
       include: [
         {
@@ -619,6 +645,13 @@ app.get('/api/reservations/:id', verifyToken, requireLibrarian, async (req, res)
 
     if (!reservation) {
       return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
+    if (
+      currentUser.role !== 'librarian' &&
+      reservation.user_id !== currentUser.user_id
+    ) {
+      return res.status(403).json({ error: 'You can only view your own reservations.' });
     }
 
     res.json({
@@ -681,20 +714,35 @@ app.post('/api/reservations', verifyToken, async (req, res) => {
   }
 });
 
-app.put('/api/reservations/:id', verifyToken, requireLibrarian, async (req, res) => {
+app.put('/api/reservations/:id', verifyToken, async (req, res) => {
   try {
+    const currentUser = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     const reservation = await Reservations.findByPk(req.params.id);
 
     if (!reservation) {
       return res.status(404).json({ error: 'Reservation not found.' });
     }
 
-    const updatedData = {
+    if (
+      currentUser.role !== 'librarian' &&
+      reservation.user_id !== currentUser.user_id
+    ) {
+      return res.status(403).json({ error: 'You can only update your own reservations.' });
+    }
+
+    await reservation.update({
       ...req.body,
       updated_at: new Date(),
-    };
-
-    await reservation.update(updatedData);
+    });
 
     res.json({
       ...reservation.toJSON(),
@@ -719,6 +767,7 @@ app.delete('/api/reservations/:id', verifyToken, requireLibrarian, async (req, r
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // --------------------
 // START SERVER

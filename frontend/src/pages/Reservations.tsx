@@ -32,23 +32,28 @@ export default function Reservations() {
   const [selectedBookId, setSelectedBookId] = useState<number | ''>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   const fetchData = async () => {
     try {
       setError('')
+      setSuccess('')
 
-      const [resRes, bookRes, userRes] = await Promise.all([
-        api.get('/api/reservations'),
-        api.get('/api/books'),
-        api.get('/api/me'),
-      ])
-
-      setReservations(resRes.data)
+      const bookRes = await api.get('/api/books')
       setBooks(bookRes.data)
+
+      const userRes = await api.get('/api/me')
       setCurrentUser(userRes.data)
-    } catch (err) {
+
+      const resRes = await api.get('/api/reservations')
+      setReservations(resRes.data)
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to load reservations.')
+
+      const backendMessage =
+        err?.response?.data?.error || 'Unable to load reservations.'
+
+      setError(backendMessage)
     } finally {
       setLoading(false)
     }
@@ -59,31 +64,50 @@ export default function Reservations() {
   }, [])
 
   const handleCheckout = async () => {
-    if (!selectedBookId) return
+    if (!selectedBookId) {
+      setError('Please select a book to check out.')
+      return
+    }
 
     try {
+      setError('')
+      setSuccess('')
+
       await api.post('/api/reservations', {
         book_id: selectedBookId,
       })
 
+      setSuccess('Book checked out successfully.')
       setSelectedBookId('')
-      fetchData()
-    } catch (err) {
+      await fetchData()
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to check out book.')
+
+      const backendMessage =
+        err?.response?.data?.error || 'Unable to check out book.'
+
+      setError(backendMessage)
     }
   }
 
   const handleReturn = async (reservation: Reservation) => {
     try {
+      setError('')
+      setSuccess('')
+
       await api.put(`/api/reservations/${reservation.reservation_id}`, {
         check_in: new Date(),
       })
 
-      fetchData()
-    } catch (err) {
+      setSuccess('Book returned successfully.')
+      await fetchData()
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to return book.')
+
+      const backendMessage =
+        err?.response?.data?.error || 'Unable to return book.'
+
+      setError(backendMessage)
     }
   }
 
@@ -92,11 +116,20 @@ export default function Reservations() {
     if (!confirmDelete) return
 
     try {
+      setError('')
+      setSuccess('')
+
       await api.delete(`/api/reservations/${id}`)
-      fetchData()
-    } catch (err) {
+
+      setSuccess('Reservation deleted successfully.')
+      await fetchData()
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to delete reservation.')
+
+      const backendMessage =
+        err?.response?.data?.error || 'Unable to delete reservation.'
+
+      setError(backendMessage)
     }
   }
 
@@ -119,12 +152,14 @@ export default function Reservations() {
         <div className="form-actions">
           <select
             value={selectedBookId}
-            onChange={(e) => setSelectedBookId(Number(e.target.value))}
+            onChange={(e) =>
+              setSelectedBookId(e.target.value ? Number(e.target.value) : '')
+            }
           >
             <option value="">Select a book</option>
 
             {books
-              .filter((b) => b.availability === 'Available')
+              .filter((book) => book.availability === 'Available')
               .map((book) => (
                 <option key={book.book_id} value={book.book_id}>
                   {book.title}
@@ -136,51 +171,58 @@ export default function Reservations() {
         </div>
       </section>
 
-      {error && <p>{error}</p>}
+      {success && <p className="success-message">{success}</p>}
+      {error && <p className="error-message">{error}</p>}
 
       <div className="book-grid">
-        {reservations.map((res) => (
-          <article key={res.reservation_id} className="book-card">
-            <h2>{res.book?.title ?? `Book ID: ${res.book_id}`}</h2>
+        {reservations.map((reservation) => (
+          <article key={reservation.reservation_id} className="book-card">
+            <h2>
+              {reservation.book?.title ?? `Book ID: ${reservation.book_id}`}
+            </h2>
 
             <div className="book-details">
               <p>
                 <span className="label">Checked Out:</span>{' '}
-                {new Date(res.check_out).toLocaleDateString()}
+                {new Date(reservation.check_out).toLocaleDateString()}
               </p>
 
               <p>
                 <span className="label">Due:</span>{' '}
-                {new Date(res.due_date).toLocaleDateString()}
+                {new Date(reservation.due_date).toLocaleDateString()}
               </p>
 
               <p>
                 <span className="label">Returned:</span>{' '}
-                {res.check_in
-                  ? new Date(res.check_in).toLocaleDateString()
+                {reservation.check_in
+                  ? new Date(reservation.check_in).toLocaleDateString()
                   : 'Not returned'}
               </p>
             </div>
 
             <span
               className={
-                res.status === 'checked_out'
+                reservation.status === 'checked_out'
                   ? 'badge available'
-                  : res.status === 'overdue'
+                  : reservation.status === 'overdue'
                   ? 'badge unavailable'
                   : 'badge'
               }
             >
-              {res.status}
+              {reservation.status}
             </span>
 
             <div className="card-actions">
-              {!res.check_in && (
-                <button onClick={() => handleReturn(res)}>Return</button>
+              {!reservation.check_in && (
+                <button onClick={() => handleReturn(reservation)}>
+                  Return
+                </button>
               )}
 
               {currentUser?.role === 'librarian' && (
-                <button onClick={() => handleDelete(res.reservation_id)}>
+                <button
+                  onClick={() => handleDelete(reservation.reservation_id)}
+                >
                   Delete
                 </button>
               )}
