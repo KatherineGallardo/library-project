@@ -17,7 +17,6 @@ interface ProfileFormData {
   first_name: string
   last_name: string
   phone_number: string
-  email: string
   date_of_birth: string
 }
 
@@ -25,7 +24,6 @@ const emptyForm: ProfileFormData = {
   first_name: '',
   last_name: '',
   phone_number: '',
-  email: '',
   date_of_birth: '',
 }
 
@@ -42,15 +40,15 @@ export default function Profile() {
       setError('')
 
       const response = await api.get('/api/me')
+      const data = response.data
 
-      setProfile(response.data)
+      setProfile(data)
 
       setFormData({
-        first_name: response.data.first_name ?? '',
-        last_name: response.data.last_name ?? '',
-        phone_number: response.data.phone_number ?? '',
-        email: response.data.email ?? '',
-        date_of_birth: response.data.date_of_birth ?? '',
+        first_name: data.first_name ?? '',
+        last_name: data.last_name ?? '',
+        phone_number: data.phone_number ?? '',
+        date_of_birth: data.date_of_birth ?? '',
       })
     } catch (err) {
       console.error(err)
@@ -66,6 +64,7 @@ export default function Profile() {
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -80,6 +79,27 @@ export default function Profile() {
       setError('')
       setSuccessMessage('')
 
+      // 🔒 Validation (same style as CompleteProfile)
+      const phonePattern = /^\d{3}-\d{3}-\d{4}$/
+
+      if (!phonePattern.test(formData.phone_number)) {
+        setError('Phone number must be in this format: 123-456-7890')
+        return
+      }
+
+      const today = new Date()
+      const birthDate = new Date(formData.date_of_birth)
+
+      if (!formData.date_of_birth || Number.isNaN(birthDate.getTime())) {
+        setError('Please enter a valid date of birth.')
+        return
+      }
+
+      if (birthDate >= today) {
+        setError('Date of birth must be in the past.')
+        return
+      }
+
       const response = await api.put('/api/me', formData)
 
       setProfile((prev) =>
@@ -92,9 +112,13 @@ export default function Profile() {
       )
 
       setSuccessMessage('Account details updated successfully.')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('Unable to update account details right now.')
+
+      const backendMessage =
+        err?.response?.data?.error || 'Unable to update account details.'
+
+      setError(backendMessage)
     } finally {
       setSaving(false)
     }
@@ -149,19 +173,20 @@ export default function Profile() {
             <label>Phone Number</label>
             <input
               name="phone_number"
+              placeholder="123-456-7890"
               value={formData.phone_number}
               onChange={handleChange}
               required
             />
           </div>
 
+          {/* 🔒 Read-only email */}
           <div className="form-field">
             <label>Email</label>
-            <input
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-            />
+            <input value={profile?.email ?? ''} readOnly />
+            <small className="helper-text">
+              Email cannot be changed after account creation.
+            </small>
           </div>
 
           <div className="form-field">
@@ -169,6 +194,7 @@ export default function Profile() {
             <input
               type="date"
               name="date_of_birth"
+              max={new Date().toISOString().split('T')[0]}
               value={formData.date_of_birth}
               onChange={handleChange}
               required
@@ -183,7 +209,7 @@ export default function Profile() {
         </form>
 
         {successMessage && <p className="success-message">{successMessage}</p>}
-        {error && <p>{error}</p>}
+        {error && <p className="error-message">{error}</p>}
       </section>
     </main>
   )

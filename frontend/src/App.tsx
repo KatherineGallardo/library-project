@@ -89,7 +89,7 @@ function App() {
               <NavLink to="/profile">My Account</NavLink>
 
               {currentUser?.role === 'librarian' && (
-                <NavLink to="/admin">Librarian</NavLink>
+                <NavLink to="/admin">Librarian Dashboard</NavLink>
               )}
             </>
           )}
