@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Reservations from './pages/Reservations'
 import Profile from './pages/Profile'
 import AdminDashboard from './pages/AdminDashboard'
+import CompleteProfile from './pages/CompleteProfile'
 
 function App() {
   const auth = useAsgardeo()
@@ -51,6 +52,7 @@ function App() {
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
       </Routes>
     </BrowserRouter>
   )

@@ -288,6 +288,74 @@ app.get('/api/auth-test', verifyToken, (req, res) => {
   });
 });
 
+// api/me routes 
+app.get('/api/me', verifyToken, async (req, res) => {
+  try {
+    let user = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
+
+    if (!user) {
+      user = await Users.create({
+        asgardeo_id: req.asgardeoId,
+        first_name: 'Pending',
+        last_name: 'User',
+        role: 'patron',
+        phone_number: 'Pending',
+        email: null,
+        date_of_birth: '1900-01-01',
+        updated_at: new Date(),
+      });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error loading current user:', err);
+
+    res.status(500).json({
+      error: 'Unable to load current user.',
+      detail: err.message,
+    });
+  }
+});
+
+// update route for api/me 
+app.put('/api/me', verifyToken, async (req, res) => {
+  try {
+    const user = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const { first_name, last_name, phone_number, email, date_of_birth } = req.body;
+
+    await user.update({
+      first_name,
+      last_name,
+      phone_number,
+      email,
+      date_of_birth,
+      updated_at: new Date(),
+    });
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error updating current user:', err);
+
+    res.status(400).json({
+      error: 'Unable to update current user.',
+      detail: err.message,
+    });
+  }
+});
+
 // --------------------
 // BOOK ROUTES
 // --------------------
