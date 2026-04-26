@@ -271,16 +271,43 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
+const requireLibrarian = async (req, res, next) => {
+  try {
+    const user = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (user.role !== 'librarian') {
+      return res.status(403).json({ error: 'Librarian access required.' });
+    }
+
+    req.currentUser = user;
+
+    next();
+  } catch (err) {
+    console.error('Error checking librarian role:', err);
+
+    return res.status(500).json({
+      error: 'Unable to verify user role.',
+      detail: err.message,
+    });
+  }
+};
+
 // --------------------
 // ROUTES
 // --------------------
 
-// Test route
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
-// Protected auth test route
 app.get('/api/auth-test', verifyToken, (req, res) => {
   res.json({
     message: 'Token verified successfully.',
@@ -288,7 +315,10 @@ app.get('/api/auth-test', verifyToken, (req, res) => {
   });
 });
 
-// api/me routes 
+// --------------------
+// CURRENT USER ROUTES
+// --------------------
+
 app.get('/api/me', verifyToken, async (req, res) => {
   try {
     let user = await Users.findOne({
@@ -321,7 +351,6 @@ app.get('/api/me', verifyToken, async (req, res) => {
   }
 });
 
-// update route for api/me 
 app.put('/api/me', verifyToken, async (req, res) => {
   try {
     const user = await Users.findOne({
@@ -360,7 +389,6 @@ app.put('/api/me', verifyToken, async (req, res) => {
 // BOOK ROUTES
 // --------------------
 
-// GET /api/books
 app.get('/api/books', async (req, res) => {
   try {
     const books = await Books.findAll({ order: [['book_id', 'ASC']] });
@@ -383,7 +411,6 @@ app.get('/api/books', async (req, res) => {
   }
 });
 
-// GET /api/books/:id
 app.get('/api/books/:id', async (req, res) => {
   try {
     const book = await Books.findByPk(req.params.id);
@@ -404,8 +431,7 @@ app.get('/api/books/:id', async (req, res) => {
   }
 });
 
-// POST /api/books
-app.post('/api/books', async (req, res) => {
+app.post('/api/books', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const newBook = await Books.create({
       ...req.body,
@@ -418,8 +444,7 @@ app.post('/api/books', async (req, res) => {
   }
 });
 
-// PUT /api/books/:id
-app.put('/api/books/:id', async (req, res) => {
+app.put('/api/books/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const book = await Books.findByPk(req.params.id);
 
@@ -437,8 +462,8 @@ app.put('/api/books/:id', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-// DELETE /api/books/:id
-app.delete('/api/books/:id', async (req, res) => {
+
+app.delete('/api/books/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const book = await Books.findByPk(req.params.id);
 
@@ -457,8 +482,7 @@ app.delete('/api/books/:id', async (req, res) => {
 // USER ROUTES
 // --------------------
 
-// POST /api/users
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const newUser = await Users.create({
       ...req.body,
@@ -471,8 +495,7 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// GET /api/users
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const users = await Users.findAll({ order: [['user_id', 'ASC']] });
     res.json(users);
@@ -481,8 +504,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// GET /api/users/:id
-app.get('/api/users/:id', async (req, res) => {
+app.get('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const user = await Users.findByPk(req.params.id);
 
@@ -515,8 +537,7 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const user = await Users.findByPk(req.params.id);
 
@@ -535,8 +556,7 @@ app.put('/api/users/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const user = await Users.findByPk(req.params.id);
 
@@ -554,8 +574,8 @@ app.delete('/api/users/:id', async (req, res) => {
 // --------------------
 // RESERVATION ROUTES
 // --------------------
-// GET /api/reservations
-app.get('/api/reservations', async (req, res) => {
+
+app.get('/api/reservations', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const reservations = await Reservations.findAll({
       include: [
@@ -582,8 +602,7 @@ app.get('/api/reservations', async (req, res) => {
   }
 });
 
-// GET /api/reservations/:id
-app.get('/api/reservations/:id', async (req, res) => {
+app.get('/api/reservations/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const reservation = await Reservations.findByPk(req.params.id, {
       include: [
@@ -611,13 +630,22 @@ app.get('/api/reservations/:id', async (req, res) => {
   }
 });
 
-// POST /api/reservations
-app.post('/api/reservations', async (req, res) => {
+app.post('/api/reservations', verifyToken, async (req, res) => {
   try {
-    const { user_id, book_id } = req.body;
+    const currentUser = await Users.findOne({
+      where: {
+        asgardeo_id: req.asgardeoId,
+      },
+    });
 
-    if (!user_id || !book_id) {
-      return res.status(400).json({ error: 'user_id and book_id are required.' });
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const { book_id } = req.body;
+
+    if (!book_id) {
+      return res.status(400).json({ error: 'book_id is required.' });
     }
 
     const existingActiveReservation = await Reservations.findOne({
@@ -636,7 +664,7 @@ app.post('/api/reservations', async (req, res) => {
     dueDate.setDate(dueDate.getDate() + 7);
 
     const newReservation = await Reservations.create({
-      user_id,
+      user_id: currentUser.user_id,
       book_id,
       check_out: checkOutDate,
       due_date: dueDate,
@@ -653,8 +681,7 @@ app.post('/api/reservations', async (req, res) => {
   }
 });
 
-// PUT /api/reservations/:id
-app.put('/api/reservations/:id', async (req, res) => {
+app.put('/api/reservations/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const reservation = await Reservations.findByPk(req.params.id);
 
@@ -678,8 +705,7 @@ app.put('/api/reservations/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/reservations/:id
-app.delete('/api/reservations/:id', async (req, res) => {
+app.delete('/api/reservations/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const reservation = await Reservations.findByPk(req.params.id);
 

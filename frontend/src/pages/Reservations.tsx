@@ -20,26 +20,32 @@ interface Book {
   availability: string
 }
 
+interface CurrentUser {
+  user_id: number
+  role: 'patron' | 'librarian'
+}
+
 export default function Reservations() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [books, setBooks] = useState<Book[]>([])
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [selectedBookId, setSelectedBookId] = useState<number | ''>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const USER_ID = 2 // temporary hardcode
 
   const fetchData = async () => {
     try {
       setError('')
 
-      const [resRes, bookRes] = await Promise.all([
-        api.get('/reservations'),
-        api.get('/books'),
+      const [resRes, bookRes, userRes] = await Promise.all([
+        api.get('/api/reservations'),
+        api.get('/api/books'),
+        api.get('/api/me'),
       ])
 
       setReservations(resRes.data)
       setBooks(bookRes.data)
+      setCurrentUser(userRes.data)
     } catch (err) {
       console.error(err)
       setError('Unable to load reservations.')
@@ -56,8 +62,7 @@ export default function Reservations() {
     if (!selectedBookId) return
 
     try {
-      await api.post('/reservations', {
-        user_id: USER_ID,
+      await api.post('/api/reservations', {
         book_id: selectedBookId,
       })
 
@@ -71,7 +76,7 @@ export default function Reservations() {
 
   const handleReturn = async (reservation: Reservation) => {
     try {
-      await api.put(`/reservations/${reservation.reservation_id}`, {
+      await api.put(`/api/reservations/${reservation.reservation_id}`, {
         check_in: new Date(),
       })
 
@@ -87,7 +92,7 @@ export default function Reservations() {
     if (!confirmDelete) return
 
     try {
-      await api.delete(`/reservations/${id}`)
+      await api.delete(`/api/reservations/${id}`)
       fetchData()
     } catch (err) {
       console.error(err)
@@ -108,7 +113,6 @@ export default function Reservations() {
     <main className="page-container">
       <h1>Reservations</h1>
 
-      {/* CHECKOUT SECTION */}
       <section className="book-form-section">
         <h2>Check Out a Book</h2>
 
@@ -134,7 +138,6 @@ export default function Reservations() {
 
       {error && <p>{error}</p>}
 
-      {/* RESERVATION LIST */}
       <div className="book-grid">
         {reservations.map((res) => (
           <article key={res.reservation_id} className="book-card">
@@ -176,9 +179,11 @@ export default function Reservations() {
                 <button onClick={() => handleReturn(res)}>Return</button>
               )}
 
-              <button onClick={() => handleDelete(res.reservation_id)}>
-                Delete
-              </button>
+              {currentUser?.role === 'librarian' && (
+                <button onClick={() => handleDelete(res.reservation_id)}>
+                  Delete
+                </button>
+              )}
             </div>
           </article>
         ))}

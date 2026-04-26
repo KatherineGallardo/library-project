@@ -20,7 +20,7 @@ export default function Books() {
   const fetchBooks = async () => {
     try {
       setError('')
-      const response = await api.get('/books')
+      const response = await api.get('/api/books')
       setBooks(response.data)
     } catch (err) {
       console.error(err)
@@ -49,7 +49,6 @@ export default function Books() {
 
       {error && <p>{error}</p>}
 
-      {/* BOOK LIST */}
       <div className="book-grid">
         {books.map((book) => (
           <article key={book.book_id} className="book-card">

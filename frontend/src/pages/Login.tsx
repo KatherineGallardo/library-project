@@ -5,11 +5,10 @@ export default function Login() {
   const auth = useAsgardeo()
 
   useEffect(() => {
-    // if user is not signed in, trigger redirect to Asgardeo
-    if (!auth?.isSignedIn) {
+    if (!auth?.isLoading && !auth?.isSignedIn) {
       auth?.signIn()
     }
-  }, [auth])
+  }, [auth?.isLoading, auth?.isSignedIn])
 
   return (
     <main className="page-container">

@@ -19,17 +19,13 @@ export default function Home() {
       try {
         setLoadingUser(true)
 
-        const token = await auth.getAccessToken()
-
-        const response = await api.get('/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
+        const response = await api.get('/api/me')
         const user = response.data
 
-        if (user.first_name === 'Pending') {
+        if (
+          user.first_name === 'Pending' ||
+          user.phone_number === 'Pending'
+        ) {
           navigate('/complete-profile')
         }
       } catch (err) {
@@ -44,14 +40,7 @@ export default function Home() {
 
   const testBackendAuth = async () => {
     try {
-      const token = await auth.getAccessToken()
-
-      const response = await api.get('/auth-test', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
+      const response = await api.get('/api/auth-test')
       setMessage(response.data.message)
     } catch (err) {
       console.error(err)

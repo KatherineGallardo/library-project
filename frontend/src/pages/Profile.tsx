@@ -37,13 +37,14 @@ export default function Profile() {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  const USER_ID = 2
-
   const fetchProfile = async () => {
     try {
       setError('')
-      const response = await api.get(`/users/${USER_ID}`)
+
+      const response = await api.get('/api/me')
+
       setProfile(response.data)
+
       setFormData({
         first_name: response.data.first_name ?? '',
         last_name: response.data.last_name ?? '',
@@ -79,7 +80,7 @@ export default function Profile() {
       setError('')
       setSuccessMessage('')
 
-      const response = await api.put(`/users/${USER_ID}`, formData)
+      const response = await api.put('/api/me', formData)
 
       setProfile((prev) =>
         prev
@@ -120,19 +121,13 @@ export default function Profile() {
             <p>
               <span className="label">Role:</span> {profile.role}
             </p>
-            <p>
-              <span className="label">Overdue Items:</span>{' '}
-              {profile.overdue_count ?? 0}
-            </p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="book-form">
           <div className="form-field">
-            <label htmlFor="first_name">First Name</label>
+            <label>First Name</label>
             <input
-              id="first_name"
-              type="text"
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
@@ -141,10 +136,8 @@ export default function Profile() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="last_name">Last Name</label>
+            <label>Last Name</label>
             <input
-              id="last_name"
-              type="text"
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
@@ -153,10 +146,8 @@ export default function Profile() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="phone_number">Phone Number</label>
+            <label>Phone Number</label>
             <input
-              id="phone_number"
-              type="tel"
               name="phone_number"
               value={formData.phone_number}
               onChange={handleChange}
@@ -165,10 +156,8 @@ export default function Profile() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="email">Email</label>
+            <label>Email</label>
             <input
-              id="email"
-              type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
@@ -176,9 +165,8 @@ export default function Profile() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="date_of_birth">Date of Birth</label>
+            <label>Date of Birth</label>
             <input
-              id="date_of_birth"
               type="date"
               name="date_of_birth"
               value={formData.date_of_birth}

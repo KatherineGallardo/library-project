@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAsgardeo } from '@asgardeo/react'
 import api from '../api'
 
 export default function CompleteProfile() {
-  const auth = useAsgardeo()
   const navigate = useNavigate()
 
   const [formData, setFormData] = useState({
@@ -39,13 +37,11 @@ export default function CompleteProfile() {
 
       if (!phonePattern.test(formData.phone_number)) {
         setError('Phone number must be in this format: 123-456-7890')
-        setSaving(false)
         return
       }
 
       if (!emailPattern.test(formData.email)) {
         setError('Please enter the same valid email address you used during sign up.')
-        setSaving(false)
         return
       }
 
@@ -54,23 +50,15 @@ export default function CompleteProfile() {
 
       if (!formData.date_of_birth || Number.isNaN(birthDate.getTime())) {
         setError('Please enter a valid date of birth.')
-        setSaving(false)
         return
       }
 
       if (birthDate >= today) {
         setError('Date of birth must be in the past.')
-        setSaving(false)
         return
       }
 
-      const token = await auth.getAccessToken()
-
-      await api.put('/me', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      await api.put('/api/me', formData)
 
       navigate('/profile')
     } catch (err) {
@@ -134,7 +122,7 @@ export default function CompleteProfile() {
             onChange={handleChange}
             required
           />
-          <small style={{ color: 'gray' }}>
+          <small className="helper-text">
             Please enter the exact email address you used when creating your account.
           </small>
         </div>

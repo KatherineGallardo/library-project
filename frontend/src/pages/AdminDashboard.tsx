@@ -96,9 +96,9 @@ export default function AdminDashboard() {
       setError('')
 
       const [usersResponse, booksResponse, reservationsResponse] = await Promise.all([
-        api.get('/users'),
-        api.get('/books'),
-        api.get('/reservations'),
+        api.get('/api/users'),
+        api.get('/api/books'),
+        api.get('/api/reservations'),
       ])
 
       setUsers(usersResponse.data)
@@ -180,9 +180,9 @@ export default function AdminDashboard() {
       const payload = { ...userForm }
 
       if (editingUserId) {
-        await api.put(`/users/${editingUserId}`, payload)
+        await api.put(`/api/users/${editingUserId}`, payload)
       } else {
-        await api.post('/users', payload)
+        await api.post('/api/users', payload)
       }
 
       resetUserForm()
@@ -203,9 +203,9 @@ export default function AdminDashboard() {
       }
 
       if (editingBookId) {
-        await api.put(`/books/${editingBookId}`, payload)
+        await api.put(`/api/books/${editingBookId}`, payload)
       } else {
-        await api.post('/books', payload)
+        await api.post('/api/books', payload)
       }
 
       resetBookForm()
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
     if (!confirmed) return
 
     try {
-      await api.delete(`/users/${userId}`)
+      await api.delete(`/api/users/${userId}`)
       await fetchData()
     } catch (err) {
       console.error(err)
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
     if (!confirmed) return
 
     try {
-      await api.delete(`/books/${bookId}`)
+      await api.delete(`/api/books/${bookId}`)
       await fetchData()
     } catch (err) {
       console.error(err)
@@ -248,7 +248,7 @@ export default function AdminDashboard() {
       const dueDate = new Date(checkOutDate)
       dueDate.setDate(dueDate.getDate() + 7)
 
-      await api.put(`/reservations/${reservation.reservation_id}`, {
+      await api.put(`/api/reservations/${reservation.reservation_id}`, {
         check_out: checkOutDate,
         due_date: dueDate,
         check_in: null,
@@ -263,7 +263,7 @@ export default function AdminDashboard() {
 
   const handleReturn = async (reservation: Reservation) => {
     try {
-      await api.put(`/reservations/${reservation.reservation_id}`, {
+      await api.put(`/api/reservations/${reservation.reservation_id}`, {
         check_in: new Date(),
       })
 
@@ -279,7 +279,7 @@ export default function AdminDashboard() {
     if (!confirmed) return
 
     try {
-      await api.delete(`/reservations/${id}`)
+      await api.delete(`/api/reservations/${id}`)
       await fetchData()
     } catch (err) {
       console.error(err)
