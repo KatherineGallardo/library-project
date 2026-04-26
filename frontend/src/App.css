@@ -342,3 +342,9 @@ button[type='button'] {
   font-size: 0.95rem;
   color: #5a3d2d;
 }
+
+.error-message {
+  color: #a94438;
+  font-weight: 600;
+  margin-top: 0.75rem;
+}

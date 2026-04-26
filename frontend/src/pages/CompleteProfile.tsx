@@ -27,29 +27,59 @@ export default function CompleteProfile() {
     }))
   }
 
-const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
-  event.preventDefault()
+  const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault()
 
-  try {
-    setSaving(true)
-    setError('')
+    try {
+      setSaving(true)
+      setError('')
 
-    const token = await auth.getAccessToken()
+      const phonePattern = /^\d{3}-\d{3}-\d{4}$/
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-    await api.put('/me', formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+      if (!phonePattern.test(formData.phone_number)) {
+        setError('Phone number must be in this format: 123-456-7890')
+        setSaving(false)
+        return
+      }
 
-    navigate('/profile')
-  } catch (err) {
-    console.error(err)
-    setError('Unable to save profile right now.')
-  } finally {
-    setSaving(false)
+      if (formData.email && !emailPattern.test(formData.email)) {
+        setError('Please enter a valid email address.')
+        setSaving(false)
+        return
+      }
+
+      const today = new Date()
+      const birthDate = new Date(formData.date_of_birth)
+
+      if (!formData.date_of_birth || Number.isNaN(birthDate.getTime())) {
+        setError('Please enter a valid date of birth.')
+        setSaving(false)
+        return
+      }
+
+      if (birthDate >= today) {
+        setError('Date of birth must be in the past.')
+        setSaving(false)
+        return
+      }
+
+      const token = await auth.getAccessToken()
+
+      await api.put('/me', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      navigate('/profile')
+    } catch (err) {
+      console.error(err)
+      setError('Unable to save profile right now.')
+    } finally {
+      setSaving(false)
+    }
   }
-}
 
   return (
     <main className="page-container">
@@ -85,6 +115,8 @@ const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
             id="phone_number"
             name="phone_number"
             type="tel"
+            placeholder="123-456-7890"
+            pattern="\d{3}-\d{3}-\d{4}"
             value={formData.phone_number}
             onChange={handleChange}
             required
@@ -97,6 +129,7 @@ const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
             id="email"
             name="email"
             type="email"
+            placeholder="name@example.com"
             value={formData.email}
             onChange={handleChange}
           />
@@ -108,6 +141,7 @@ const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
             id="date_of_birth"
             name="date_of_birth"
             type="date"
+            max={new Date().toISOString().split('T')[0]}
             value={formData.date_of_birth}
             onChange={handleChange}
             required
@@ -121,7 +155,7 @@ const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
         </div>
       </form>
 
-      {error && <p>{error}</p>}
+        {error && <p className="error-message">{error}</p>}
     </main>
   )
 }
