@@ -2,12 +2,19 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Sequelize, DataTypes, Op } from 'sequelize';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 5001;
 const DB_SCHEMA = process.env.DB_SCHEMA || 'public';
 const useSsl = process.env.PGSSLMODE === 'require';
+
+const ASGARDEO_ORG = process.env.ASGARDEO_ORG || 'katherinegallardo';
+
+const JWKS = createRemoteJWKSet(
+  new URL(`https://api.asgardeo.io/t/${ASGARDEO_ORG}/oauth2/jwks`)
+);
 
 const app = express();
 
@@ -225,12 +232,60 @@ async function getBookAvailability(bookId) {
 }
 
 // --------------------
+// AUTH MIDDLEWARE
+// --------------------
+
+const verifyToken = async (req, res, next) => {
+  const authHeader = (req.headers.authorization || '').trim();
+
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      error: 'Missing authorization',
+      detail: 'Send Authorization: Bearer <access_token>',
+    });
+  }
+
+  const token = authHeader.slice(7).trim();
+
+  if (token.split('.').length !== 3) {
+    return res.status(401).json({
+      error: 'Access token is not a JWT',
+    });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+
+    req.asgardeoId = payload.sub;
+
+    console.log('Verified Asgardeo user:', req.asgardeoId);
+
+    next();
+  } catch (err) {
+    console.error('JWT verification failed:', err.message);
+
+    return res.status(401).json({
+      error: 'Invalid or expired token',
+      detail: err.message,
+    });
+  }
+};
+
+// --------------------
 // ROUTES
 // --------------------
 
 // Test route
 app.get('/', (req, res) => {
   res.send('Hello World!');
+});
+
+// Protected auth test route
+app.get('/api/auth-test', verifyToken, (req, res) => {
+  res.json({
+    message: 'Token verified successfully.',
+    asgardeoId: req.asgardeoId,
+  });
 });
 
 // --------------------
@@ -314,7 +369,6 @@ app.put('/api/books/:id', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
 // DELETE /api/books/:id
 app.delete('/api/books/:id', async (req, res) => {
   try {
@@ -432,7 +486,6 @@ app.delete('/api/users/:id', async (req, res) => {
 // --------------------
 // RESERVATION ROUTES
 // --------------------
-
 // GET /api/reservations
 app.get('/api/reservations', async (req, res) => {
   try {

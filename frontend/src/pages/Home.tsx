@@ -1,3 +1,4 @@
+/*
 import { Link, NavLink } from 'react-router-dom'
 
 export default function Home() {
@@ -36,6 +37,48 @@ export default function Home() {
           <p>Update your account and monitor your reading activity.</p>
         </NavLink>
       </section>
+    </main>
+  )
+}
+*/
+
+import { useState } from 'react'
+import { useAsgardeo } from '@asgardeo/react'
+import api from '../api'
+
+export default function Home() {
+  const auth = useAsgardeo()
+  const [message, setMessage] = useState('')
+
+  const testBackendAuth = async () => {
+    try {
+      const token = await auth.getAccessToken()
+
+      const response = await api.get('/auth-test', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      setMessage(response.data.message)
+    } catch (err) {
+      console.error(err)
+      setMessage('Backend auth test failed.')
+    }
+  }
+
+  return (
+    <main className="page-container">
+      <h1>Library Project</h1>
+      <p>Welcome to the library catalog.</p>
+
+      {auth?.isSignedIn && (
+        <button onClick={testBackendAuth}>
+          Test Backend Auth
+        </button>
+      )}
+
+      {message && <p>{message}</p>}
     </main>
   )
 }
