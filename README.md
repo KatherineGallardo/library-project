@@ -19,6 +19,27 @@ A full-stack library management system that allows patrons to browse books, mana
 
 ---
 
+## Strata AI Chatbot
+AI Chatbot Integration (Strata.fyi)
+LibraryOS includes an embedded AI assistant powered by Strata.fyi.
+The chatbot appears directly in the UI and can answer questions such as:
+
+“What book would you recommend if I like ..."
+
+The widget is loaded in index.html:
+
+```
+<script src="https://strata.fyi/widget.js" defer></script>
+
+<strata-chat
+  workspace="brandoncafeco"
+  chat-title="Library AI Agent"
+  welcome-message="What do you want from the library?"
+></strata-chat>
+```
+
+---
+
 ## Project Structure
 
 ```
