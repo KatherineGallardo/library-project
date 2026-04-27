@@ -65,7 +65,7 @@ function App() {
 
           {auth?.isSignedIn && (
             <>
-              <NavLink to="/reservations">Reservations</NavLink>
+              <NavLink to="/reservations"> My Reservations</NavLink>
               <NavLink to="/profile">My Account</NavLink>
 
               {isLibrarian && (

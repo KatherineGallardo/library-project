@@ -202,6 +202,13 @@ export default function Reservations() {
                   ? new Date(reservation.check_in).toLocaleDateString()
                   : 'Not returned'}
               </p>
+
+              <p>
+                <span className="label">Late Status:</span>{' '}
+                {!reservation.check_in && new Date() > new Date(reservation.due_date)
+                ? 'Late'
+                : 'On Time'}
+              </p>
             </div>
 
             <span
