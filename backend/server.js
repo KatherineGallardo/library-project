@@ -463,6 +463,7 @@ app.put('/api/books/:id', verifyToken, requireLibrarian, async (req, res) => {
   }
 });
 
+// NOTE: Backend validation added to enforce safe deletion rules beyond frontend UI restrictions
 app.delete('/api/books/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const book = await Books.findByPk(req.params.id);
@@ -471,12 +472,29 @@ app.delete('/api/books/:id', verifyToken, requireLibrarian, async (req, res) => 
       return res.status(404).json({ error: 'Book not found.' });
     }
 
+    // Prevent deletion if book is currently checked out (preserves active reservation data)
+    const activeReservations = await Reservations.count({
+      where: {
+        book_id: book.book_id,
+        check_in: null,
+      },
+    });
+
+    if (activeReservations > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete book because it is currently checked out.',
+      });
+    }
+
     await book.destroy();
+
     res.json({ message: 'Book deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 // --------------------
 // USER ROUTES
@@ -556,6 +574,7 @@ app.put('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => {
   }
 });
 
+// NOTE: Backend validation added to enforce safe deletion rules beyond frontend UI restrictions
 app.delete('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => {
   try {
     const user = await Users.findByPk(req.params.id);
@@ -564,7 +583,22 @@ app.delete('/api/users/:id', verifyToken, requireLibrarian, async (req, res) => 
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    // Prevent deletion if user has active reservations (preserves data integrity)
+    const activeReservations = await Reservations.count({
+      where: {
+        user_id: user.user_id,
+        check_in: null,
+      },
+    });
+
+    if (activeReservations > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete user because they have active reservations.',
+      });
+    }
+
     await user.destroy();
+
     res.json({ message: 'User deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

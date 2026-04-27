@@ -1,3 +1,5 @@
+// NOTE: Updated to address MVP feedback by adding user-facing success messages.
+// Ensures clear confirmation after CRUD operations and improves overall user experience.
 import { useEffect, useState } from 'react'
 import { useAsgardeo } from '@asgardeo/react'
 import api, { setAccessToken } from '../api'
@@ -82,6 +84,8 @@ export default function AdminDashboard() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // New state for success messages
+  const [success, setSuccess] = useState('')
 
   const [userForm, setUserForm] = useState<UserFormData>(emptyUserForm)
   const [bookForm, setBookForm] = useState<BookFormData>(emptyBookForm)
@@ -232,6 +236,7 @@ export default function AdminDashboard() {
 
     try {
       setError('')
+      setSuccess('')
 
       const payload = {
         ...userForm,
@@ -240,9 +245,11 @@ export default function AdminDashboard() {
 
       if (editingUserId) {
         await api.put(`/api/users/${editingUserId}`, payload)
+        setSuccess('User updated successfully.')
       } else {
         await api.post('/api/users', payload)
-      }
+        setSuccess('User created successfully.')
+      }     
 
       resetUserForm()
       await fetchData()
@@ -257,6 +264,7 @@ export default function AdminDashboard() {
 
     try {
       setError('')
+      setSuccess('')
 
       const payload = {
         ...bookForm,
@@ -265,8 +273,10 @@ export default function AdminDashboard() {
 
       if (editingBookId) {
         await api.put(`/api/books/${editingBookId}`, payload)
+        setSuccess('Book updated successfully.')
       } else {
         await api.post('/api/books', payload)
+        setSuccess('Book created successfully.')
       }
 
       resetBookForm()
@@ -279,6 +289,7 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async (userId: number, fullName: string) => {
     setError('')
+    setSuccess('')
 
     if (userHasCurrentReservations(userId)) {
       setError(
@@ -294,7 +305,8 @@ export default function AdminDashboard() {
     if (typedConfirmation !== 'DELETE') return
 
     try {
-      await api.delete(`/api/users/${userId}`)
+      const response = await api.delete(`/api/users/${userId}`)
+      setSuccess(response.data.message || 'User deleted successfully.')
       await fetchData()
     } catch (err: any) {
       console.error(err)
@@ -307,6 +319,7 @@ export default function AdminDashboard() {
 
   const handleDeleteBook = async (bookId: number, title: string) => {
     setError('')
+    setSuccess('')
 
     if (bookHasCurrentReservations(bookId)) {
       setError(
@@ -322,7 +335,8 @@ export default function AdminDashboard() {
     if (typedConfirmation !== 'DELETE') return
 
     try {
-      await api.delete(`/api/books/${bookId}`)
+      const response = await api.delete(`/api/books/${bookId}`)
+      setSuccess(response.data.message || 'Book deleted successfully.')
       await fetchData()
     } catch (err: any) {
       console.error(err)
@@ -336,6 +350,7 @@ export default function AdminDashboard() {
   const handleMarkCheckedOut = async (reservation: Reservation) => {
     try {
       setError('')
+      setSuccess('')
 
       const checkOutDate = new Date()
       const dueDate = new Date(checkOutDate)
@@ -346,7 +361,8 @@ export default function AdminDashboard() {
         due_date: dueDate,
         check_in: null,
       })
-
+      
+      setSuccess('Reservation marked as checked out.')
       await fetchData()
     } catch (err: any) {
       console.error(err)
@@ -359,11 +375,13 @@ export default function AdminDashboard() {
   const handleReturn = async (reservation: Reservation) => {
     try {
       setError('')
+      setSuccess('')
 
       await api.put(`/api/reservations/${reservation.reservation_id}`, {
         check_in: new Date(),
       })
 
+      setSuccess('Reservation marked as returned.')
       await fetchData()
     } catch (err: any) {
       console.error(err)
@@ -373,6 +391,7 @@ export default function AdminDashboard() {
 
   const handleDeleteReservation = async (id: number) => {
     setError('')
+    setSuccess('')
 
     const confirmed = window.confirm(
       'Are you sure you want to delete this reservation? This action cannot be undone.'
@@ -381,7 +400,8 @@ export default function AdminDashboard() {
     if (!confirmed) return
 
     try {
-      await api.delete(`/api/reservations/${id}`)
+      const response = await api.delete(`/api/reservations/${id}`)
+      setSuccess(response.data.message || 'Reservation deleted successfully.')
       await fetchData()
     } catch (err: any) {
       console.error(err)
@@ -410,6 +430,7 @@ export default function AdminDashboard() {
       <h1>Librarian Dashboard</h1>
 
       {error && <p className="error-message">{error}</p>}
+      {success && <p className="success-message">{success}</p>}
 
       <section className="dashboard-grid">
         <section className="book-form-section">
