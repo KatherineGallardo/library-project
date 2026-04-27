@@ -2,12 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234f46e5'/%3E%3Cpath d='M7 9h4v14H7zM13 9h4v14h-4zM19 9l6 7-6 7V9z' fill='white'/%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>LibraryOS</title>
+    <script src="https://strata.fyi/widget.js" defer></script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root">
+      <script type="module" src="/src/main.tsx"></script>
+      <strata-chat
+      workspace="brandoncafeco"
+      chat-title="Library AI Agent"
+      welcome-message="What do you want from the library?"
+    ></strata-chat>
+    </div>
   </body>
 </html>
