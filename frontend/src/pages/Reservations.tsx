@@ -150,6 +150,7 @@ export default function Reservations() {
         <section className="book-form-section">
           <h2>Check Out a Book</h2>
 
+          <p className="form-note">Only available books will appear in the dropdown below.</p>
           <div className="form-actions">
             <select
               value={selectedBookId}

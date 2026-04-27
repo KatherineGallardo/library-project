@@ -545,43 +545,23 @@ export default function AdminDashboard() {
           <p>No users loaded.</p>
         ) : (
           <div className="admin-card-grid">
-            {users.map((user) => {
-              const hasCurrentReservations = userHasCurrentReservations(user.user_id)
-              const currentReservationCount = getUserCurrentReservationCount(user.user_id)
+            {users.map((user) => (
+            <article key={user.user_id} className="book-card">
+            <h2>{user.first_name} {user.last_name}</h2>
 
-              return (
-                <article key={user.user_id} className="book-card">
-                  <h2>{user.first_name} {user.last_name}</h2>
+            <div className="book-details">
+            <p><span className="label">Role:</span> {user.role}</p>
+            <p><span className="label">Email:</span> {user.email || 'No email'}</p>
+            <p><span className="label">Phone:</span> {user.phone_number}</p>
+            <p><span className="label">Date of Birth:</span> {user.date_of_birth}</p>
+          </div>
 
-                  <div className="book-details">
-                    <p><span className="label">Role:</span> {user.role}</p>
-                    <p><span className="label">Email:</span> {user.email || 'No email'}</p>
-                    <p><span className="label">Phone:</span> {user.phone_number}</p>
-                    <p><span className="label">Date of Birth:</span> {user.date_of_birth}</p>
-
-                    {hasCurrentReservations && (
-                      <p>
-                        <span className="label">Delete Status:</span> Cannot delete because this user has {currentReservationCount} current {currentReservationCount === 1 ? 'reservation' : 'reservations'}.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="card-actions">
-                    <button type="button" onClick={() => handleEditUser(user)}>Edit</button>
-
-                    <button
-                      type="button"
-                      disabled={hasCurrentReservations}
-                      onClick={() =>
-                        handleDeleteUser(user.user_id, `${user.first_name} ${user.last_name}`)
-                      }
-                    >
-                      {hasCurrentReservations ? 'Delete Disabled' : 'Delete'}
-                    </button>
-                  </div>
-                </article>
-              )
-            })}
+          <div className="card-actions">
+          <button type="button" onClick={() => handleEditUser(user)}>Edit</button>
+          </div>
+          </article>
+    ))}
+            
           </div>
         )}
       </section>
@@ -594,40 +574,27 @@ export default function AdminDashboard() {
         ) : (
           <div className="admin-card-grid">
             {books.map((book) => {
-              const hasCurrentReservations = bookHasCurrentReservations(book.book_id)
-
+              
               return (
-                <article key={book.book_id} className="book-card">
-                  <h2>{book.title}</h2>
+                    <article key={book.book_id} className="book-card">
+                    <h2>{book.title}</h2>
 
-                  <div className="book-details">
+                    <div className="book-details">
                     <p><span className="label">Author:</span> {book.author_first_name} {book.author_last_name}</p>
                     <p><span className="label">Published:</span> {book.year_published}</p>
                     <p><span className="label">Genre:</span> {book.genre}</p>
                     <p className="description"><span className="label">Description:</span> {book.description || 'No description'}</p>
+                    </div>
 
-                    {hasCurrentReservations && (
-                      <p><span className="label">Delete Status:</span> Cannot delete because this book is currently checked out.</p>
-                    )}
-                  </div>
+                      <span className={book.availability === 'Available' ? 'badge available' : 'badge unavailable'}>
+                       {book.availability}
+                      </span>
 
-                  <span className={book.availability === 'Available' ? 'badge available' : 'badge unavailable'}>
-                    {book.availability}
-                  </span>
-
-                  <div className="card-actions">
-                    <button type="button" onClick={() => handleEditBook(book)}>Edit</button>
-
-                    <button
-                      type="button"
-                      disabled={hasCurrentReservations}
-                      onClick={() => handleDeleteBook(book.book_id, book.title)}
-                    >
-                      {hasCurrentReservations ? 'Delete Disabled' : 'Delete'}
-                    </button>
-                  </div>
-                </article>
-              )
+                      <div className="card-actions">
+                       <button type="button" onClick={() => handleEditBook(book)}>Edit</button>
+                       </div>
+                    </article>
+                      )   
             })}
           </div>
         )}
