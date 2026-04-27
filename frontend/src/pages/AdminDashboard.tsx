@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import api from '../api'
+import { useAsgardeo } from '@asgardeo/react'
+import api, { setAccessToken } from '../api'
 
 interface User {
   user_id: number
@@ -31,13 +32,8 @@ interface Reservation {
   due_date: string | null
   check_in: string | null
   status: string
-  user?: {
-    first_name: string
-    last_name: string
-  }
-  book?: {
-    title: string
-  }
+  user?: { first_name: string; last_name: string }
+  book?: { title: string }
 }
 
 interface UserFormData {
@@ -79,6 +75,8 @@ const emptyBookForm: BookFormData = {
 }
 
 export default function AdminDashboard() {
+  const auth = useAsgardeo()
+
   const [users, setUsers] = useState<User[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
@@ -93,29 +91,70 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
+      setLoading(true)
       setError('')
 
-      const [usersResponse, booksResponse, reservationsResponse] =
-        await Promise.all([
-          api.get('/api/users'),
-          api.get('/api/books'),
-          api.get('/api/reservations'),
-        ])
-
-      setUsers(usersResponse.data)
+      const booksResponse = await api.get('/api/books')
       setBooks(booksResponse.data)
-      setReservations(reservationsResponse.data)
-    } catch (err) {
-      console.error(err)
-      setError('Unable to load admin dashboard data right now.')
+
+      const usersResponse = await api.get('/api/users')
+      setUsers(usersResponse.data)
+
+      try {
+        const reservationsResponse = await api.get('/api/reservations')
+        setReservations(reservationsResponse.data)
+      } catch (reservationErr: any) {
+        console.error('Reservations load error:', reservationErr)
+
+        setReservations([])
+        setError(
+          `${reservationErr?.response?.status || 'No status'}: ${
+            reservationErr?.response?.data?.error ||
+            reservationErr?.response?.data?.detail ||
+            'Unable to load reservations.'
+          }`
+        )
+      }
+    } catch (err: any) {
+      console.error('Admin dashboard load error:', err)
+
+      setError(
+        `${err?.response?.status || 'No status'}: ${
+          err?.response?.data?.error ||
+          err?.response?.data?.detail ||
+          err?.message ||
+          'Unable to load admin dashboard.'
+        }`
+      )
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    const loadAdminDashboard = async () => {
+      if (auth?.isLoading) return
+
+      if (!auth?.isSignedIn) {
+        setAccessToken(null)
+        setError('Please sign in to view the librarian dashboard.')
+        setLoading(false)
+        return
+      }
+
+      try {
+        const token = await auth.getAccessToken()
+        setAccessToken(token)
+        await fetchData()
+      } catch (err: any) {
+        console.error('Admin auth error:', err)
+        setError(err?.message || 'Unable to authenticate librarian dashboard.')
+        setLoading(false)
+      }
+    }
+
+    loadAdminDashboard()
+  }, [auth?.isLoading, auth?.isSignedIn])
 
   const userHasCurrentReservations = (userId: number) => {
     return reservations.some(
@@ -123,32 +162,30 @@ export default function AdminDashboard() {
     )
   }
 
-  const getCurrentReservationCount = (userId: number) => {
+  const getUserCurrentReservationCount = (userId: number) => {
     return reservations.filter(
       (reservation) => reservation.user_id === userId && !reservation.check_in
     ).length
+  }
+
+  const bookHasCurrentReservations = (bookId: number) => {
+    return reservations.some(
+      (reservation) => reservation.book_id === bookId && !reservation.check_in
+    )
   }
 
   const handleUserChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = event.target
-
-    setUserForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setUserForm((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleBookChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target
-
-    setBookForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setBookForm((prev) => ({ ...prev, [name]: value }))
   }
 
   const resetUserForm = () => {
@@ -196,7 +233,10 @@ export default function AdminDashboard() {
     try {
       setError('')
 
-      const payload = { ...userForm }
+      const payload = {
+        ...userForm,
+        email: userForm.email || null,
+      }
 
       if (editingUserId) {
         await api.put(`/api/users/${editingUserId}`, payload)
@@ -251,9 +291,7 @@ export default function AdminDashboard() {
       `Type DELETE to confirm you want to delete ${fullName}. This action cannot be undone.`
     )
 
-    if (typedConfirmation !== 'DELETE') {
-      return
-    }
+    if (typedConfirmation !== 'DELETE') return
 
     try {
       await api.delete(`/api/users/${userId}`)
@@ -270,20 +308,28 @@ export default function AdminDashboard() {
   const handleDeleteBook = async (bookId: number, title: string) => {
     setError('')
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${title}"? This action cannot be undone.`
-    )
-
-    if (!confirmed) {
+    if (bookHasCurrentReservations(bookId)) {
+      setError(
+        `"${title}" cannot be deleted because it is currently checked out. Mark the reservation as returned before deleting this book.`
+      )
       return
     }
+
+    const typedConfirmation = window.prompt(
+      `Type DELETE to confirm you want to delete "${title}". This action cannot be undone.`
+    )
+
+    if (typedConfirmation !== 'DELETE') return
 
     try {
       await api.delete(`/api/books/${bookId}`)
       await fetchData()
     } catch (err: any) {
       console.error(err)
-      setError(err.response?.data?.error || 'Unable to delete book right now.')
+      setError(
+        err.response?.data?.error ||
+          `"${title}" could not be deleted. Please make sure this book is not currently checked out.`
+      )
     }
   }
 
@@ -332,9 +378,7 @@ export default function AdminDashboard() {
       'Are you sure you want to delete this reservation? This action cannot be undone.'
     )
 
-    if (!confirmed) {
-      return
-    }
+    if (!confirmed) return
 
     try {
       await api.delete(`/api/reservations/${id}`)
@@ -365,7 +409,7 @@ export default function AdminDashboard() {
     <main className="page-container">
       <h1>Librarian Dashboard</h1>
 
-      {error && <p>{error}</p>}
+      {error && <p className="error-message">{error}</p>}
 
       <section className="dashboard-grid">
         <section className="book-form-section">
@@ -374,31 +418,17 @@ export default function AdminDashboard() {
           <form onSubmit={handleUserSubmit} className="book-form">
             <div className="form-field">
               <label>First Name</label>
-              <input
-                name="first_name"
-                value={userForm.first_name}
-                onChange={handleUserChange}
-                required
-              />
+              <input name="first_name" value={userForm.first_name} onChange={handleUserChange} required />
             </div>
 
             <div className="form-field">
               <label>Last Name</label>
-              <input
-                name="last_name"
-                value={userForm.last_name}
-                onChange={handleUserChange}
-                required
-              />
+              <input name="last_name" value={userForm.last_name} onChange={handleUserChange} required />
             </div>
 
             <div className="form-field">
               <label>Role</label>
-              <select
-                name="role"
-                value={userForm.role}
-                onChange={handleUserChange}
-              >
+              <select name="role" value={userForm.role} onChange={handleUserChange}>
                 <option value="patron">Patron</option>
                 <option value="librarian">Librarian</option>
               </select>
@@ -406,43 +436,22 @@ export default function AdminDashboard() {
 
             <div className="form-field">
               <label>Phone Number</label>
-              <input
-                name="phone_number"
-                value={userForm.phone_number}
-                onChange={handleUserChange}
-                required
-              />
+              <input name="phone_number" value={userForm.phone_number} onChange={handleUserChange} required />
             </div>
 
             <div className="form-field">
               <label>Email</label>
-              <input
-                name="email"
-                type="email"
-                value={userForm.email}
-                onChange={handleUserChange}
-              />
+              <input name="email" type="email" value={userForm.email} onChange={handleUserChange} />
             </div>
 
             <div className="form-field">
               <label>Date of Birth</label>
-              <input
-                name="date_of_birth"
-                type="date"
-                value={userForm.date_of_birth}
-                onChange={handleUserChange}
-                required
-              />
+              <input name="date_of_birth" type="date" value={userForm.date_of_birth} onChange={handleUserChange} required />
             </div>
 
             <div className="form-field">
               <label>Asgardeo ID</label>
-              <input
-                name="asgardeo_id"
-                value={userForm.asgardeo_id}
-                onChange={handleUserChange}
-                required
-              />
+              <input name="asgardeo_id" value={userForm.asgardeo_id} onChange={handleUserChange} required />
             </div>
 
             <div className="form-actions">
@@ -465,62 +474,32 @@ export default function AdminDashboard() {
           <form onSubmit={handleBookSubmit} className="book-form">
             <div className="form-field">
               <label>Title</label>
-              <input
-                name="title"
-                value={bookForm.title}
-                onChange={handleBookChange}
-                required
-              />
+              <input name="title" value={bookForm.title} onChange={handleBookChange} required />
             </div>
 
             <div className="form-field">
               <label>Author First Name</label>
-              <input
-                name="author_first_name"
-                value={bookForm.author_first_name}
-                onChange={handleBookChange}
-                required
-              />
+              <input name="author_first_name" value={bookForm.author_first_name} onChange={handleBookChange} required />
             </div>
 
             <div className="form-field">
               <label>Author Last Name</label>
-              <input
-                name="author_last_name"
-                value={bookForm.author_last_name}
-                onChange={handleBookChange}
-                required
-              />
+              <input name="author_last_name" value={bookForm.author_last_name} onChange={handleBookChange} required />
             </div>
 
             <div className="form-field">
               <label>Year Published</label>
-              <input
-                name="year_published"
-                type="number"
-                value={bookForm.year_published}
-                onChange={handleBookChange}
-                required
-              />
+              <input name="year_published" type="number" value={bookForm.year_published} onChange={handleBookChange} required />
             </div>
 
             <div className="form-field">
               <label>Genre</label>
-              <input
-                name="genre"
-                value={bookForm.genre}
-                onChange={handleBookChange}
-                required
-              />
+              <input name="genre" value={bookForm.genre} onChange={handleBookChange} required />
             </div>
 
             <div className="form-field">
               <label>Description</label>
-              <textarea
-                name="description"
-                value={bookForm.description}
-                onChange={handleBookChange}
-              />
+              <textarea name="description" value={bookForm.description} onChange={handleBookChange} />
             </div>
 
             <div className="form-actions">
@@ -541,199 +520,150 @@ export default function AdminDashboard() {
       <section className="admin-section">
         <h2>Users</h2>
 
-        <div className="admin-card-grid">
-          {users.map((user) => {
-            const hasCurrentReservations = userHasCurrentReservations(user.user_id)
-            const currentReservationCount = getCurrentReservationCount(user.user_id)
+        {users.length === 0 ? (
+          <p>No users loaded.</p>
+        ) : (
+          <div className="admin-card-grid">
+            {users.map((user) => {
+              const hasCurrentReservations = userHasCurrentReservations(user.user_id)
+              const currentReservationCount = getUserCurrentReservationCount(user.user_id)
 
-            return (
-              <article key={user.user_id} className="book-card">
-                <h2>
-                  {user.first_name} {user.last_name}
-                </h2>
+              return (
+                <article key={user.user_id} className="book-card">
+                  <h2>{user.first_name} {user.last_name}</h2>
 
-                <div className="book-details">
-                  <p>
-                    <span className="label">Role:</span> {user.role}
-                  </p>
-                  <p>
-                    <span className="label">Email:</span> {user.email}
-                  </p>
-                  <p>
-                    <span className="label">Phone:</span> {user.phone_number}
-                  </p>
-                  <p>
-                    <span className="label">Date of Birth:</span>{' '}
-                    {user.date_of_birth}
-                  </p>
+                  <div className="book-details">
+                    <p><span className="label">Role:</span> {user.role}</p>
+                    <p><span className="label">Email:</span> {user.email || 'No email'}</p>
+                    <p><span className="label">Phone:</span> {user.phone_number}</p>
+                    <p><span className="label">Date of Birth:</span> {user.date_of_birth}</p>
 
-                  {hasCurrentReservations && (
-                    <p>
-                      <span className="label">Delete Status:</span> Cannot delete
-                      because this user has {currentReservationCount} current{' '}
-                      {currentReservationCount === 1
-                        ? 'reservation'
-                        : 'reservations'}
-                      .
-                    </p>
-                  )}
-                </div>
+                    {hasCurrentReservations && (
+                      <p>
+                        <span className="label">Delete Status:</span> Cannot delete because this user has {currentReservationCount} current {currentReservationCount === 1 ? 'reservation' : 'reservations'}.
+                      </p>
+                    )}
+                  </div>
 
-                <div className="card-actions">
-                  <button type="button" onClick={() => handleEditUser(user)}>
-                    Edit
-                  </button>
+                  <div className="card-actions">
+                    <button type="button" onClick={() => handleEditUser(user)}>Edit</button>
 
-                  <button
-                    type="button"
-                    disabled={hasCurrentReservations}
-                    title={
-                      hasCurrentReservations
-                        ? 'This user cannot be deleted until all current reservations are returned.'
-                        : 'Delete user'
-                    }
-                    onClick={() =>
-                      handleDeleteUser(
-                        user.user_id,
-                        `${user.first_name} ${user.last_name}`
-                      )
-                    }
-                  >
-                    {hasCurrentReservations ? 'Delete Disabled' : 'Delete'}
-                  </button>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+                    <button
+                      type="button"
+                      disabled={hasCurrentReservations}
+                      onClick={() =>
+                        handleDeleteUser(user.user_id, `${user.first_name} ${user.last_name}`)
+                      }
+                    >
+                      {hasCurrentReservations ? 'Delete Disabled' : 'Delete'}
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       <section className="admin-section">
         <h2>Books</h2>
 
-        <div className="admin-card-grid">
-          {books.map((book) => (
-            <article key={book.book_id} className="book-card">
-              <h2>{book.title}</h2>
+        {books.length === 0 ? (
+          <p>No books loaded.</p>
+        ) : (
+          <div className="admin-card-grid">
+            {books.map((book) => {
+              const hasCurrentReservations = bookHasCurrentReservations(book.book_id)
 
-              <div className="book-details">
-                <p>
-                  <span className="label">Author:</span>{' '}
-                  {book.author_first_name} {book.author_last_name}
-                </p>
-                <p>
-                  <span className="label">Published:</span>{' '}
-                  {book.year_published}
-                </p>
-                <p>
-                  <span className="label">Genre:</span> {book.genre}
-                </p>
-                <p className="description">
-                  <span className="label">Description:</span>{' '}
-                  {book.description}
-                </p>
-              </div>
+              return (
+                <article key={book.book_id} className="book-card">
+                  <h2>{book.title}</h2>
 
-              <span
-                className={
-                  book.availability === 'Available'
-                    ? 'badge available'
-                    : 'badge unavailable'
-                }
-              >
-                {book.availability}
-              </span>
+                  <div className="book-details">
+                    <p><span className="label">Author:</span> {book.author_first_name} {book.author_last_name}</p>
+                    <p><span className="label">Published:</span> {book.year_published}</p>
+                    <p><span className="label">Genre:</span> {book.genre}</p>
+                    <p className="description"><span className="label">Description:</span> {book.description || 'No description'}</p>
 
-              <div className="card-actions">
-                <button type="button" onClick={() => handleEditBook(book)}>
-                  Edit
-                </button>
+                    {hasCurrentReservations && (
+                      <p><span className="label">Delete Status:</span> Cannot delete because this book is currently checked out.</p>
+                    )}
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleDeleteBook(book.book_id, book.title)}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                  <span className={book.availability === 'Available' ? 'badge available' : 'badge unavailable'}>
+                    {book.availability}
+                  </span>
+
+                  <div className="card-actions">
+                    <button type="button" onClick={() => handleEditBook(book)}>Edit</button>
+
+                    <button
+                      type="button"
+                      disabled={hasCurrentReservations}
+                      onClick={() => handleDeleteBook(book.book_id, book.title)}
+                    >
+                      {hasCurrentReservations ? 'Delete Disabled' : 'Delete'}
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       <section className="admin-section">
         <h2>Reservations</h2>
 
-        <div className="admin-card-grid">
-          {reservations.map((reservation) => (
-            <article key={reservation.reservation_id} className="book-card">
-              <h2>{reservation.book?.title ?? `Book ${reservation.book_id}`}</h2>
+        {reservations.length === 0 ? (
+          <p>No reservations loaded.</p>
+        ) : (
+          <div className="admin-card-grid">
+            {reservations.map((reservation) => (
+              <article key={reservation.reservation_id} className="book-card">
+                <h2>{reservation.book?.title ?? `Book ${reservation.book_id}`}</h2>
 
-              <div className="book-details">
-                <p>
-                  <span className="label">Patron:</span>{' '}
-                  {reservation.user
-                    ? `${reservation.user.first_name} ${reservation.user.last_name}`
-                    : `User ${reservation.user_id}`}
-                </p>
-                <p>
-                  <span className="label">Checked Out:</span>{' '}
-                  {reservation.check_out
-                    ? new Date(reservation.check_out).toLocaleDateString()
-                    : 'Not checked out'}
-                </p>
-                <p>
-                  <span className="label">Due:</span>{' '}
-                  {reservation.due_date
-                    ? new Date(reservation.due_date).toLocaleDateString()
-                    : 'No due date'}
-                </p>
-                <p>
-                  <span className="label">Returned:</span>{' '}
-                  {reservation.check_in
-                    ? new Date(reservation.check_in).toLocaleDateString()
-                    : 'Not returned'}
-                </p>
-              </div>
+                <div className="book-details">
+                  <p><span className="label">Patron:</span> {reservation.user ? `${reservation.user.first_name} ${reservation.user.last_name}` : `User ${reservation.user_id}`}</p>
+                  <p><span className="label">Checked Out:</span> {reservation.check_out ? new Date(reservation.check_out).toLocaleDateString() : 'Not checked out'}</p>
+                  <p><span className="label">Due:</span> {reservation.due_date ? new Date(reservation.due_date).toLocaleDateString() : 'No due date'}</p>
+                  <p><span className="label">Returned:</span> {reservation.check_in ? new Date(reservation.check_in).toLocaleDateString() : 'Not returned'}</p>
+                </div>
 
-              <span
-                className={
-                  reservation.status === 'overdue'
-                    ? 'badge unavailable'
-                    : reservation.status === 'returned'
+                <span
+                  className={
+                    reservation.status === 'overdue'
+                      ? 'badge unavailable'
+                      : reservation.status === 'returned'
                       ? 'badge available'
                       : 'badge'
-                }
-              >
-                {formatStatus(reservation.status)}
-              </span>
-
-              <div className="card-actions">
-                {reservation.check_in ? (
-                  <button
-                    type="button"
-                    onClick={() => handleMarkCheckedOut(reservation)}
-                  >
-                    Mark Checked Out
-                  </button>
-                ) : (
-                  <button type="button" onClick={() => handleReturn(reservation)}>
-                    Mark Returned
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDeleteReservation(reservation.reservation_id)
                   }
                 >
-                  Delete
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                  {formatStatus(reservation.status)}
+                </span>
+
+                <div className="card-actions">
+                  {reservation.check_in ? (
+                    <button type="button" onClick={() => handleMarkCheckedOut(reservation)}>
+                      Mark Checked Out
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => handleReturn(reservation)}>
+                      Mark Returned
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteReservation(reservation.reservation_id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   )

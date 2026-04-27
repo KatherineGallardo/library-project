@@ -45,7 +45,7 @@ export default function Reservations() {
       const userRes = await api.get('/api/me')
       setCurrentUser(userRes.data)
 
-      const resRes = await api.get('/api/reservations')
+      const resRes = await api.get('/api/my-reservations')
       setReservations(resRes.data)
     } catch (err: any) {
       console.error(err)
@@ -95,9 +95,9 @@ export default function Reservations() {
       setError('')
       setSuccess('')
 
-      await api.put(`/api/reservations/${reservation.reservation_id}`, {
-        check_in: new Date(),
-      })
+      await api.put(
+        `/api/my-reservations/${reservation.reservation_id}/return`
+      )
 
       setSuccess('Book returned successfully.')
       await fetchData()
@@ -146,30 +146,34 @@ export default function Reservations() {
     <main className="page-container">
       <h1>Reservations</h1>
 
-      <section className="book-form-section">
-        <h2>Check Out a Book</h2>
+      {currentUser?.role === 'patron' && (
+        <section className="book-form-section">
+          <h2>Check Out a Book</h2>
 
-        <div className="form-actions">
-          <select
-            value={selectedBookId}
-            onChange={(e) =>
-              setSelectedBookId(e.target.value ? Number(e.target.value) : '')
-            }
-          >
-            <option value="">Select a book</option>
+          <div className="form-actions">
+            <select
+              value={selectedBookId}
+              onChange={(e) =>
+                setSelectedBookId(
+                  e.target.value ? Number(e.target.value) : ''
+                )
+              }
+            >
+              <option value="">Select a book</option>
 
-            {books
-              .filter((book) => book.availability === 'Available')
-              .map((book) => (
-                <option key={book.book_id} value={book.book_id}>
-                  {book.title}
-                </option>
-              ))}
-          </select>
+              {books
+                .filter((book) => book.availability === 'Available')
+                .map((book) => (
+                  <option key={book.book_id} value={book.book_id}>
+                    {book.title}
+                  </option>
+                ))}
+            </select>
 
-          <button onClick={handleCheckout}>Check Out</button>
-        </div>
-      </section>
+            <button onClick={handleCheckout}>Check Out</button>
+          </div>
+        </section>
+      )}
 
       {success && <p className="success-message">{success}</p>}
       {error && <p className="error-message">{error}</p>}
@@ -213,15 +217,18 @@ export default function Reservations() {
             </span>
 
             <div className="card-actions">
-              {!reservation.check_in && (
-                <button onClick={() => handleReturn(reservation)}>
-                  Return
-                </button>
-              )}
+              {!reservation.check_in &&
+                currentUser?.role === 'patron' && (
+                  <button onClick={() => handleReturn(reservation)}>
+                    Return
+                  </button>
+                )}
 
               {currentUser?.role === 'librarian' && (
                 <button
-                  onClick={() => handleDelete(reservation.reservation_id)}
+                  onClick={() =>
+                    handleDelete(reservation.reservation_id)
+                  }
                 >
                   Delete
                 </button>

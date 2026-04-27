@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAsgardeo } from '@asgardeo/react'
-import api from '../api'
+import api, { setAccessToken } from '../api'
 
 export default function Home() {
   const auth = useAsgardeo()
@@ -18,6 +18,9 @@ export default function Home() {
 
       try {
         setLoadingUser(true)
+
+        const token = await auth.getAccessToken()
+        setAccessToken(token)
 
         const response = await api.get('/api/me')
         const user = response.data
@@ -40,8 +43,16 @@ export default function Home() {
 
   const testBackendAuth = async () => {
     try {
+      const token = await auth.getAccessToken()
+      setAccessToken(token)
+
       const response = await api.get('/api/auth-test')
-      setMessage(response.data.message)
+
+      console.log('AUTH TEST RESPONSE:', response.data)
+
+      setMessage(
+        `Backend auth worked. Asgardeo ID: ${response.data.asgardeoId}`
+      )
     } catch (err) {
       console.error(err)
       setMessage('Backend auth test failed.')

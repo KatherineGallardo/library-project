@@ -1,8 +1,7 @@
 import './App.css'
-import { BrowserRouter, NavLink, Route, Routes, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { useAsgardeo } from '@asgardeo/react'
-import { useEffect, useState, type ReactElement } from 'react'
-
 import api, { setAccessToken } from './api'
 
 import Home from './pages/Home'
@@ -13,18 +12,26 @@ import Profile from './pages/Profile'
 import AdminDashboard from './pages/AdminDashboard'
 import CompleteProfile from './pages/CompleteProfile'
 
+interface CurrentUser {
+  user_id: number
+  first_name: string
+  last_name: string
+  role: 'patron' | 'librarian'
+}
+
 function App() {
   const auth = useAsgardeo()
-
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [loadingUser, setLoadingUser] = useState(true)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
 
   useEffect(() => {
-    const loadUser = async () => {
+    const loadAccessTokenAndUser = async () => {
+      if (auth?.isLoading) {
+        return
+      }
+
       if (!auth?.isSignedIn) {
         setAccessToken(null)
         setCurrentUser(null)
-        setLoadingUser(false)
         return
       }
 
@@ -32,46 +39,19 @@ function App() {
         const token = await auth.getAccessToken()
         setAccessToken(token)
 
-        const res = await api.get('/api/me')
-        setCurrentUser(res.data)
+        const response = await api.get('/api/me')
+        setCurrentUser(response.data)
       } catch (err) {
-        console.error('Error loading current user:', err)
+        console.error('Error loading access token or current user:', err)
         setAccessToken(null)
-      } finally {
-        setLoadingUser(false)
+        setCurrentUser(null)
       }
     }
 
-    loadUser()
-  }, [auth?.isSignedIn])
+    loadAccessTokenAndUser()
+  }, [auth?.isLoading, auth?.isSignedIn, auth])
 
-  if (loadingUser) {
-    return <div>Loading...</div>
-  }
-
-  const requireAuth = (element: ReactElement) => {
-    if (!auth?.isSignedIn) return <Navigate to="/login" />
-    return element
-  }
-
-  const requireLibrarian = (element: ReactElement) => {
-    if (!auth?.isSignedIn) return <Navigate to="/login" />
-    if (currentUser?.role !== 'librarian') return <Navigate to="/" />
-    return element
-  }
-
-  const requireProfileComplete = (element: ReactElement) => {
-    if (!auth?.isSignedIn) return element
-
-    if (
-      currentUser?.first_name === 'Pending' ||
-      currentUser?.phone_number === 'Pending'
-    ) {
-      return <Navigate to="/complete-profile" />
-    }
-
-    return element
-  }
+  const isLibrarian = currentUser?.role === 'librarian'
 
   return (
     <BrowserRouter>
@@ -88,8 +68,8 @@ function App() {
               <NavLink to="/reservations">Reservations</NavLink>
               <NavLink to="/profile">My Account</NavLink>
 
-              {currentUser?.role === 'librarian' && (
-                <NavLink to="/admin">Librarian Dashboard</NavLink>
+              {isLibrarian && (
+                <NavLink to="/admin">Librarian</NavLink>
               )}
             </>
           )}
@@ -97,7 +77,14 @@ function App() {
           {!auth?.isSignedIn ? (
             <NavLink to="/login">Sign In</NavLink>
           ) : (
-            <button className="nav-button" onClick={() => auth?.signOut()}>
+            <button
+              className="nav-button"
+              onClick={() => {
+                setAccessToken(null)
+                setCurrentUser(null)
+                auth?.signOut()
+              }}
+            >
               Sign Out
             </button>
           )}
@@ -106,27 +93,12 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route path="/books" element={<Books />} />
-
         <Route path="/login" element={<Login />} />
-
-        <Route
-          path="/reservations"
-          element={requireAuth(requireProfileComplete(<Reservations />))}
-        />
-
-        <Route path="/profile" element={requireAuth(<Profile />)} />
-
-        <Route
-          path="/admin"
-          element={requireLibrarian(<AdminDashboard />)}
-        />
-
-        <Route
-          path="/complete-profile"
-          element={requireAuth(<CompleteProfile />)}
-        />
+        <Route path="/reservations" element={<Reservations />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
       </Routes>
     </BrowserRouter>
   )
