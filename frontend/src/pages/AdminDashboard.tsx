@@ -160,24 +160,6 @@ export default function AdminDashboard() {
     loadAdminDashboard()
   }, [auth?.isLoading, auth?.isSignedIn])
 
-  const userHasCurrentReservations = (userId: number) => {
-    return reservations.some(
-      (reservation) => reservation.user_id === userId && !reservation.check_in
-    )
-  }
-
-  const getUserCurrentReservationCount = (userId: number) => {
-    return reservations.filter(
-      (reservation) => reservation.user_id === userId && !reservation.check_in
-    ).length
-  }
-
-  const bookHasCurrentReservations = (bookId: number) => {
-    return reservations.some(
-      (reservation) => reservation.book_id === bookId && !reservation.check_in
-    )
-  }
-
   const handleUserChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -284,66 +266,6 @@ export default function AdminDashboard() {
     } catch (err: any) {
       console.error(err)
       setError(err.response?.data?.error || 'Unable to save book right now.')
-    }
-  }
-
-  const handleDeleteUser = async (userId: number, fullName: string) => {
-    setError('')
-    setSuccess('')
-
-    if (userHasCurrentReservations(userId)) {
-      setError(
-        `${fullName} cannot be deleted because they currently have an active reservation. Mark the reservation as returned before deleting this user.`
-      )
-      return
-    }
-
-    const typedConfirmation = window.prompt(
-      `Type DELETE to confirm you want to delete ${fullName}. This action cannot be undone.`
-    )
-
-    if (typedConfirmation !== 'DELETE') return
-
-    try {
-      const response = await api.delete(`/api/users/${userId}`)
-      setSuccess(response.data.message || 'User deleted successfully.')
-      await fetchData()
-    } catch (err: any) {
-      console.error(err)
-      setError(
-        err.response?.data?.error ||
-          `${fullName} could not be deleted. Please make sure this user does not have any current reservations.`
-      )
-    }
-  }
-
-  const handleDeleteBook = async (bookId: number, title: string) => {
-    setError('')
-    setSuccess('')
-
-    if (bookHasCurrentReservations(bookId)) {
-      setError(
-        `"${title}" cannot be deleted because it is currently checked out. Mark the reservation as returned before deleting this book.`
-      )
-      return
-    }
-
-    const typedConfirmation = window.prompt(
-      `Type DELETE to confirm you want to delete "${title}". This action cannot be undone.`
-    )
-
-    if (typedConfirmation !== 'DELETE') return
-
-    try {
-      const response = await api.delete(`/api/books/${bookId}`)
-      setSuccess(response.data.message || 'Book deleted successfully.')
-      await fetchData()
-    } catch (err: any) {
-      console.error(err)
-      setError(
-        err.response?.data?.error ||
-          `"${title}" could not be deleted. Please make sure this book is not currently checked out.`
-      )
     }
   }
 
